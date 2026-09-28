@@ -1,0 +1,11 @@
+country          = "comoros"
+tito_region      = "Comoros"
+tito_version     = "pending"
+data_version     = "pending"
+cpu              = 4096 # AHWA estimate, benchmark first
+memory           = 16384
+ef5_max_workers  = 1    # README says sequential
+uses_streamsat   = true # confirm forcing chain
+streamsat_domain = "comoros"
+uses_hsaf        = true
+schedule_enabled = false # blocked: forcing, FIM stores

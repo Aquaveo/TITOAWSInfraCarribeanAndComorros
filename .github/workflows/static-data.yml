@@ -1,0 +1,56 @@
+name: Publish static data
+
+on:
+  workflow_dispatch:
+    inputs:
+      country:
+        type: choice
+        options: [guatemala, haiti, barbados, antigua, comoros]
+      ref:
+        description: AHWA branch or tag to package
+        required: true
+      data_version:
+        description: Version label, normally the AHWA release
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: static-${{ inputs.country }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.country }}
+    env:
+      COUNTRY: ${{ inputs.country }}
+      AHWA_REF: ${{ inputs.ref }}
+      DATA_VERSION: ${{ inputs.data_version }}
+      DATA_BUCKET: ${{ vars.DATA_BUCKET }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check inputs
+        id: region
+        run: |
+          [[ "$DATA_VERSION" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "invalid data_version" >&2; exit 1; }
+          [[ "$AHWA_REF" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "invalid ref" >&2; exit 1; }
+          name=$(sed -n 's/^tito_region *= *"\(.*\)".*/\1/p' "tofu/countries/$COUNTRY.tfvars")
+          [ -n "$name" ] || { echo "no tito_region for $COUNTRY" >&2; exit 1; }
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: AHWALab/TITOCaribbeanAndComoros
+          ref: ${{ env.AHWA_REF }}
+          path: tito
+          lfs: true
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - env:
+          REGION_NAME: ${{ steps.region.outputs.name }}
+        run: scripts/publish-static.sh tito "$COUNTRY" "$REGION_NAME" "$DATA_VERSION" "$DATA_BUCKET"

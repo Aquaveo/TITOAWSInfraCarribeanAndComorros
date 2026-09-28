@@ -1,0 +1,10 @@
+country          = "antigua"
+tito_region      = "Antigua"
+tito_version     = "pending"
+data_version     = "pending"
+cpu              = 4096 # AHWA estimate, benchmark first
+memory           = 16384
+ef5_max_workers  = 4
+uses_streamsat   = true # confirm forcing chain
+streamsat_domain = "caribbean"
+schedule_enabled = false # blocked: forcing, FIM stores

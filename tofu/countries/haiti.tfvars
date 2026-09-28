@@ -1,0 +1,10 @@
+country          = "haiti"
+tito_region      = "Haiti"
+tito_version     = "pending"
+data_version     = "pending"
+cpu              = 4096 # unmeasured, benchmark first
+memory           = 20480
+ef5_max_workers  = 4
+uses_streamsat   = true
+streamsat_domain = "caribbean"
+schedule_enabled = false

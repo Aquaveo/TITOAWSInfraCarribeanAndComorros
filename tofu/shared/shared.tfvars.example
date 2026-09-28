@@ -1,0 +1,3 @@
+vpc_id       = "vpc-REPLACE"
+subnet_ids   = ["subnet-REPLACE_A", "subnet-REPLACE_B"]
+alert_emails = []

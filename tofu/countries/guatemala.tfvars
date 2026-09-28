@@ -1,0 +1,10 @@
+country          = "guatemala"
+tito_region      = "Guatemala"
+tito_version     = "pending"
+data_version     = "pending"
+cpu              = 4096
+memory           = 20480
+ef5_max_workers  = 4
+uses_streamsat   = true
+streamsat_domain = "caribbean"
+schedule_enabled = false # enable after AHWA items 1-3

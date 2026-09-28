@@ -1,0 +1,45 @@
+name: Plan
+
+on:
+  pull_request:
+    paths: ["tofu/**"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  plan:
+    if: vars.PLAN_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [shared, guatemala, haiti, barbados, antigua, comoros]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.10.6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Plan
+        run: |
+          if [ "${{ matrix.target }}" = "shared" ]; then
+            dir=tofu/shared; key=tito/shared.tfstate; vars=shared.tfvars
+          else
+            dir=tofu/country; key=tito/country-${{ matrix.target }}.tfstate
+            vars=../countries/${{ matrix.target }}.tfvars
+            export TF_VAR_state_bucket="${{ vars.STATE_BUCKET }}"
+            export TF_VAR_permissions_boundary_arn="${{ vars.CI_BOUNDARY_ARN }}"
+            TF_VAR_wrapper_rev=$(git rev-parse --short=12 HEAD:wrapper)
+            export TF_VAR_wrapper_rev
+          fi
+          cd "$dir"
+          tofu init -input=false \
+            -backend-config="bucket=${{ vars.STATE_BUCKET }}" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -backend-config="key=$key"
+          tofu plan -input=false -lock=false -var-file="$vars"
