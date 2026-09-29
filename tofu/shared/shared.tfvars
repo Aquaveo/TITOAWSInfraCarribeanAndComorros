@@ -3,4 +3,4 @@ subnet_ids              = ["subnet-015b88dde46c052fc", "subnet-0d2f49c9c5ed4d23a
 container_insights      = true
 outputs_expiration_days = 1 # AHWA keeps 24 hours
 site_domain             = "tito.uffis.org"
-site_domain_delegated   = false
+site_domain_delegated   = true
