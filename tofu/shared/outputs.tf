@@ -41,3 +41,7 @@ output "hsaf_secret_arn" {
 output "alerts_topic_arn" {
   value = aws_sns_topic.alerts.arn
 }
+
+output "outputs_url" {
+  value = "https://${aws_cloudfront_distribution.outputs.domain_name}/outputs"
+}

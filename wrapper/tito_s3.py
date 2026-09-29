@@ -77,6 +77,15 @@ def publish_outputs():
     with ThreadPoolExecutor(max_workers=16) as pool:
         list(pool.map(upload, files))
 
+    # Index after files, for readers
+    for cycle in done:
+        rels = sorted((p.relative_to(cycle).as_posix(), p.stat().st_size)
+                      for c, p in files if c == cycle)
+        put_json(f"{prefix}/{cycle.name}/index.json", {
+            "cycle": cycle.name,
+            "files": [{"path": rel, "size": size} for rel, size in rels],
+        })
+
     print(f"outputs ok: {len(files)} files, {len(done)} cycle(s) to s3://{BUCKET}/{prefix}/")
     if os.environ.get("TITO_UPDATE_LATEST", "1") != "1":
         print("latest.json left unchanged")
@@ -86,19 +95,24 @@ def publish_outputs():
     latest = {
         "cycle": cycle.name,
         "prefix": f"{prefix}/{cycle.name}/",
+        "index": f"{prefix}/{cycle.name}/index.json",
         "cycles_published": [c.name for c in done],
         "files": len(files),
         "published_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "image_tag": os.environ.get("TITO_IMAGE_TAG", ""),
         "static_data": os.environ.get("TITO_STATIC_PREFIX", ""),
     }
+    put_json(f"{prefix}/latest.json", latest)
+    print(f"latest.json -> {cycle.name}")
+
+
+def put_json(key, doc):
     s3.put_object(
         Bucket=BUCKET,
-        Key=f"{prefix}/latest.json",
-        Body=json.dumps(latest, indent=2).encode(),
+        Key=key,
+        Body=json.dumps(doc, indent=2).encode(),
         ContentType="application/json",
     )
-    print(f"latest.json -> {cycle.name}")
 
 
 if __name__ == "__main__":
