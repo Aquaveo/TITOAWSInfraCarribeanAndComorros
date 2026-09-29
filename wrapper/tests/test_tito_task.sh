@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2016,SC2001
 # Tests for tito-task.sh with stubs.
 set -uo pipefail
 
