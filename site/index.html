@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TITO Outputs</title>
+  <meta name="description" content="Status and latest forecast products of the TITO flash flood system for Guatemala, Haiti, Barbados, Antigua and Barbuda, and Comoros.">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"
+          integrity="sha384-m5adk5PRgt3JjiYbYoG8oXxc3EgRFKc1aCBgKzyxqxnbYpdiAMlHkR0gVDp03Q/H" crossorigin="anonymous"></script>
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <header>
+    <h1>TITO Outputs</h1>
+    <p>Hourly EF5 flash flood forecasts on AWS. Outputs are kept for about one day.</p>
+  </header>
+
+  <main>
+    <section aria-labelledby="status-title">
+      <h2 id="status-title">Status</h2>
+      <div id="status" class="board" aria-live="polite"><p class="detail">Loading…</p></div>
+      <p id="stamp" class="stamp"></p>
+    </section>
+
+    <section aria-labelledby="map-title" class="viewer">
+      <h2 id="map-title">Latest cycle</h2>
+      <form id="controls" class="controls">
+        <label>Country <select name="country"></select></label>
+        <label>Product
+          <select name="product">
+            <option value="qpeaccum">Rainfall accumulation</option>
+            <option value="maxunitq">Max unit streamflow</option>
+            <option value="maxsm">Soil saturation</option>
+            <option value="flood">Flood probability</option>
+          </select>
+        </label>
+        <label>Grid <select name="basin"></select></label>
+        <label>Statistic
+          <select name="stat">
+            <option value="median">Median</option>
+            <option value="min">Min</option>
+            <option value="max">Max</option>
+          </select>
+        </label>
+        <label>Period
+          <select name="period">
+            <option value="forecast">Forecast</option>
+            <option value="nowcast">Nowcast</option>
+          </select>
+        </label>
+        <label>Flood site <select name="site"></select></label>
+        <label>Depth <select name="depth"></select></label>
+      </form>
+      <div id="map" class="map" role="region" aria-label="Forecast map"></div>
+      <p id="info" class="info" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Data: <code>/outputs/&lt;country&gt;/latest.json</code> and each cycle's <code>index.json</code>.
+      Colours follow the forecast app's legends.</p>
+  </footer>
+</body>
+</html>
