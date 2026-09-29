@@ -1,7 +1,7 @@
 country          = "guatemala"
 tito_region      = "Guatemala"
 tito_version     = "7e6af5823491bde54e7a6a147e4c96f54e2cc6e7"
-data_version     = "7e6af5823491"
+data_version     = "7e6af5823491.2"
 cpu              = 4096
 memory           = 20480
 ef5_max_workers  = 4
