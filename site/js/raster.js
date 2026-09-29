@@ -3,6 +3,8 @@
  * Uses the geotiff.js global (GeoTIFF) loaded by index.html.
  */
 
+import { fetchOk } from "./outputs.js";
+
 const EARTH_RADIUS_M = 6378137;
 const DEGREES = 180 / Math.PI;
 
@@ -13,8 +15,7 @@ const DEGREES = 180 / Math.PI;
  *   bbox: number[], epsg: number, nodata: number|null}>}
  */
 export async function loadRaster(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${response.status} for ${url}`);
+  const response = await fetchOk(url);
   const tiff = await globalThis.GeoTIFF.fromArrayBuffer(await response.arrayBuffer());
   const image = await tiff.getImage();
   const [values] = await image.readRasters();

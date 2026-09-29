@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { basinsOf, cycleTime, floodLayers, floodPath, outputsBase, siteSummaryPaths, summaryPath } from "../js/outputs.js";
+import { basinsOf, cycleTime, floodLayers, floodPath, outputsBase, siteSummaryPaths, summaryPath, withoutCountry } from "../js/outputs.js";
 
 const PATHS = [
   "guatemala_90m/summary/qpeaccum_forecast_median.20260929.160000.tif",
@@ -55,4 +55,9 @@ test("flood path picks the depth inside the layer folder", () => {
 
 test("site summaries include quiet sites", () => {
   assert.equal(siteSummaryPaths(PATHS).length, 2);
+});
+
+test("country prefixes are stripped from grid and site names", () => {
+  assert.equal(withoutCountry("guatemala_90m"), "90m");
+  assert.equal(withoutCountry("Haiti_LaQuinte"), "LaQuinte");
 });

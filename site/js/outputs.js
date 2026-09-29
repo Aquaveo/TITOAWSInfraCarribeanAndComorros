@@ -15,16 +15,25 @@ export function outputsBase(location) {
 }
 
 /**
- * Fetch and parse a JSON document. Sends no cache headers: CloudFront
- * drops its CORS header when a request carries them, and it already
- * marks latest.json as no-cache.
+ * Fetch a URL and fail on any non-2xx status. Sends no cache headers:
+ * CloudFront drops its CORS header when a request carries them, and it
+ * already marks latest.json as no-cache.
+ * @param {string} url
+ * @returns {Promise<Response>}
+ */
+export async function fetchOk(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${response.status} for ${url}`);
+  return response;
+}
+
+/**
+ * Fetch and parse a JSON document.
  * @param {string} url
  * @returns {Promise<any>}
  */
 export async function fetchJson(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${response.status} for ${url}`);
-  return response.json();
+  return (await fetchOk(url)).json();
 }
 
 /**
@@ -61,11 +70,21 @@ export function basinsOf(paths) {
 }
 
 /**
+ * A folder or site name without its country prefix,
+ * e.g. guatemala_90m to 90m, Haiti_LaQuinte to LaQuinte.
+ * @param {string} name
+ * @returns {string}
+ */
+export function withoutCountry(name) {
+  return name.replace(/^[^_]+_/, "");
+}
+
+/**
  * Grid resolution in metres from a basin folder name.
  * @param {string} basin
  * @returns {number}
  */
-export function resolutionOf(basin) {
+function resolutionOf(basin) {
   const match = basin.match(/_(\d+)m$/);
   return match ? Number(match[1]) : 0;
 }
@@ -98,7 +117,7 @@ export function floodLayers(paths) {
     const [, folder, site, hazard] = match;
     const id = site || "mosaic";
     if (layers.has(id) && hazard === "pluvial") continue;
-    layers.set(id, { id, label: site ? site.replace(/^[^_]+_/, "") : "All sites (mosaic)", folder });
+    layers.set(id, { id, label: site ? withoutCountry(site) : "All sites (mosaic)", folder });
   }
   return [...layers.values()].sort((a, b) => a.label.localeCompare(b.label));
 }

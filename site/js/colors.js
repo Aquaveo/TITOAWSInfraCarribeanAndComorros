@@ -28,39 +28,55 @@ export function hexToRgb(hex) {
 }
 
 /**
- * Count cells per legend class, for the legend and the empty-map notice.
+ * Legend class of every cell, -1 where nothing is drawn.
  * @param {ArrayLike<number>} values
- * @param {{breaks: number[]}} legend
+ * @param {number[]} breaks
  * @param {number|null} nodata
- * @returns {number[]}
+ * @returns {Int8Array}
  */
-export function classCounts(values, legend, nodata) {
-  const counts = new Array(legend.breaks.length - 1).fill(0);
-  for (const value of values) {
-    const i = classIndex(value, legend.breaks, nodata);
-    if (i >= 0) counts[i] += 1;
+export function classifyCells(values, breaks, nodata) {
+  const classes = new Int8Array(values.length);
+  for (let cell = 0; cell < values.length; cell += 1) {
+    classes[cell] = classIndex(values[cell], breaks, nodata);
   }
-  return counts;
+  return classes;
 }
 
 /**
- * Paint a raster with its legend colours into a PNG data URL.
- * Cells outside every class are left transparent.
- * @param {{values: ArrayLike<number>, width: number, height: number, nodata: number|null}} raster
- * @param {{breaks: number[], colors: string[]}} legend
+ * Number of cells that are drawn.
+ * @param {Int8Array} classes result of classifyCells
+ * @returns {number}
+ */
+export function drawnCount(classes) {
+  let count = 0;
+  for (const i of classes) if (i >= 0) count += 1;
+  return count;
+}
+
+/**
+ * Paint classified cells with their legend colours into a PNG data URL.
+ * Undrawn cells stay transparent.
+ * @param {Int8Array} classes result of classifyCells
+ * @param {number} width
+ * @param {number} height
+ * @param {string[]} colors one #rrggbb per class
  * @returns {string}
  */
-export function paintRaster({ values, width, height, nodata }, legend) {
+export function paintCells(classes, width, height, colors) {
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d");
   const image = context.createImageData(width, height);
-  const rgb = legend.colors.map(hexToRgb);
-  for (let cell = 0; cell < values.length; cell += 1) {
-    const i = classIndex(values[cell], legend.breaks, nodata);
+  const rgb = colors.map(hexToRgb);
+  for (let cell = 0; cell < classes.length; cell += 1) {
+    const i = classes[cell];
     if (i < 0) continue;
-    image.data.set([...rgb[i], 255], cell * 4);
+    const offset = cell * 4;
+    image.data[offset] = rgb[i][0];
+    image.data[offset + 1] = rgb[i][1];
+    image.data[offset + 2] = rgb[i][2];
+    image.data[offset + 3] = 255;
   }
   context.putImageData(image, 0, 0);
   return canvas.toDataURL("image/png");

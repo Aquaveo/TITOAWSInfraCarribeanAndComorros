@@ -3,10 +3,10 @@
  */
 
 import { COUNTRIES, FLOOD_DEPTHS_CM, LEGENDS } from "./config.js";
-import { classCounts, paintRaster } from "./colors.js";
+import { classifyCells, drawnCount, paintCells } from "./colors.js";
 import { setOptions } from "./dom.js";
 import { ViewerMap } from "./map.js";
-import { basinsOf, cycleTime, floodLayers, floodPath, loadCycle, outputsBase, summaryPath } from "./outputs.js";
+import { basinsOf, cycleTime, floodLayers, floodPath, loadCycle, outputsBase, summaryPath, withoutCountry } from "./outputs.js";
 import { loadRaster, rasterBounds } from "./raster.js";
 import { loadStatus, statusCard } from "./status.js";
 
@@ -46,7 +46,7 @@ function countryCycle(country) {
  * @param {{paths: string[]}} cycle
  */
 function fillCycleOptions({ paths }) {
-  setOptions(form.basin, basinsOf(paths).map((b) => ({ value: b, label: b.replace(/^[^_]+_/, "") })));
+  setOptions(form.basin, basinsOf(paths).map((b) => ({ value: b, label: withoutCountry(b) })));
   setOptions(form.site, floodLayers(paths).map((l) => ({ value: l.id, label: l.label })));
 }
 
@@ -102,10 +102,11 @@ async function draw() {
   const raster = await loadRaster(`${cycle.root}/${layer.path}`);
   if (token !== drawToken) return;
   const bounds = rasterBounds(raster.bbox, raster.epsg);
-  viewer.show(paintRaster(raster, legend), bounds, layer.key !== fittedKey);
+  const classes = classifyCells(raster.values, legend.breaks, raster.nodata);
+  viewer.show(paintCells(classes, raster.width, raster.height, legend.colors), bounds, layer.key !== fittedKey);
   fittedKey = layer.key;
   viewer.setLegend(legend, layer.note);
-  const shown = classCounts(raster.values, legend, raster.nodata).reduce((a, b) => a + b, 0);
+  const shown = drawnCount(classes);
   const when = cycleTime(cycle.latest.cycle).toISOString().slice(0, 16).replace("T", " ");
   info.textContent = `Cycle ${when} UTC · ${layer.path.split("/").pop()} · ${shown.toLocaleString("en")} cells shown`;
 }

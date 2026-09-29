@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { classCounts, classIndex, hexToRgb } from "../js/colors.js";
+import { classifyCells, classIndex, drawnCount, hexToRgb } from "../js/colors.js";
 import { LEGENDS } from "../js/config.js";
 
 test("values fall in half-open classes", () => {
@@ -34,8 +34,10 @@ test("every legend has one colour and label per class", () => {
   }
 });
 
-test("class counts skip undrawn cells", () => {
-  assert.deepEqual(classCounts([0.01, 0.1, 0.3, 0.9, -9999], LEGENDS.flood, -9999), [1, 1, 0, 1]);
+test("cells classify once and undrawn ones are not counted", () => {
+  const classes = classifyCells([0.01, 0.1, 0.3, 0.9, -9999], LEGENDS.flood.breaks, -9999);
+  assert.deepEqual([...classes], [-1, 0, 1, 3, -1]);
+  assert.equal(drawnCount(classes), 3);
 });
 
 test("hex colours parse to rgb", () => {
