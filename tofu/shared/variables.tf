@@ -21,7 +21,7 @@ variable "bucket_name" {
 
 variable "outputs_expiration_days" {
   type        = number
-  default     = 2
+  default     = 30
   description = "Days cycle outputs stay in S3. Lifecycle rules count whole days."
 }
 
