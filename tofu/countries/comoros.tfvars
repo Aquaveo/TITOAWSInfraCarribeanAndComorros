@@ -8,4 +8,4 @@ ef5_max_workers  = 4
 uses_streamsat   = true
 streamsat_domain = "comoros"
 uses_hsaf        = true # HSAF gap-fill
-schedule_enabled = false
+schedule_enabled = true
