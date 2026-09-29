@@ -18,6 +18,8 @@ PATHS=(
 )
 
 cd "$SRC"
+# IBF data is optional
+[ ! -d "ibf_data/$REGION_NAME" ] || PATHS+=("ibf_data/$REGION_NAME")
 for p in "${PATHS[@]}"; do
     [ -e "$p" ] || { echo "missing: $p" >&2; exit 1; }
 done
