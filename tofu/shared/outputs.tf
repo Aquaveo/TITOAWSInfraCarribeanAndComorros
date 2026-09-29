@@ -47,7 +47,12 @@ output "outputs_url" {
 }
 
 output "site_url" {
-  value = "https://${aws_cloudfront_distribution.outputs.domain_name}/"
+  value = "https://${local.site_cert ? var.site_domain : aws_cloudfront_distribution.outputs.domain_name}/"
+}
+
+output "site_name_servers" {
+  description = "NS records to add in the parent zone."
+  value       = local.site_zone ? aws_route53_zone.site[0].name_servers : []
 }
 
 output "distribution_id" {

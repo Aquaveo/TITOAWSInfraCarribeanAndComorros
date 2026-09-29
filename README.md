@@ -96,6 +96,7 @@ Tests run on every pull request: `python3 -m unittest discover -s wrapper/tests`
 - **Pause a country:** disable its schedule, `tito-<country>`. The next deploy re-enables it unless `schedule_enabled = false` is set in the tfvars.
 - **Logs:** CloudWatch log group `/tito/<country>`.
 - **Viewer:** the CloudFront root (`site_url` output of `tofu/shared`) shows a status card per country and the latest maps. Outputs are public under `/outputs/<country>/`: `latest.json` names the newest cycle and each cycle's `index.json` lists its files. To try the page locally, serve `site/` and open it with `?base=<CloudFront URL>/outputs`.
+- **Viewer domain:** `site_domain` in `tofu/shared/shared.tfvars` (currently `tito.uffis.org`) gets its own Route 53 zone. After the first `Deploy shared`, add the `site_name_servers` output as NS records for that name in the parent zone (`uffis.org`, account 777460178571), then set `site_domain_delegated = true` and deploy again to add the certificate and alias.
 - **Alert emails** come from the `ALERT_EMAILS` repository secret, a JSON list, applied by `Deploy shared`. Each address must confirm the SNS subscription email.
 - **Alarms** go to the `tito-alerts` SNS topic: a failed cycle, a skipped cycle, no successful cycle in 2 hours, the scheduler failing to start a task, and STREAM-Sat running without its saved state.
 

@@ -61,6 +61,7 @@ resource "aws_cloudfront_distribution" "outputs" {
   price_class         = "PriceClass_100"
   is_ipv6_enabled     = true
   default_root_object = "index.html"
+  aliases             = local.site_cert ? [var.site_domain] : []
 
   origin {
     origin_id                = "data"
@@ -115,7 +116,10 @@ resource "aws_cloudfront_distribution" "outputs" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = !local.site_cert
+    acm_certificate_arn            = local.site_cert ? aws_acm_certificate_validation.site[0].certificate_arn : null
+    ssl_support_method             = local.site_cert ? "sni-only" : null
+    minimum_protocol_version       = local.site_cert ? "TLSv1.2_2021" : "TLSv1"
   }
 }
 
