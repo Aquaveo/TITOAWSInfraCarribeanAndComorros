@@ -6,6 +6,8 @@ locals {
     { name = "TITO_OUTPUT_PREFIX", value = local.output_prefix },
     { name = "TITO_USES_STREAMSAT", value = var.uses_streamsat ? "1" : "0" },
     { name = "TITO_STREAMSAT_DOMAIN", value = var.streamsat_domain },
+    { name = "STREAM_SAT_STATE_DIR", value = "${local.streamsat}/state" },
+    { name = "STREAM_SAT_OUTPUT_DIR", value = "${local.streamsat}/output" },
     { name = "TITO_STRICT_CHECKS", value = var.strict_checks ? "1" : "0" },
     { name = "TITO_IMAGE_TAG", value = local.image_tag },
     { name = "TITO_CYCLE_TIMEOUT_S", value = tostring(var.cycle_timeout_s) },

@@ -5,5 +5,6 @@ data_version     = "pending"
 cpu              = 4096 # AHWA estimate, benchmark first
 memory           = 16384
 ef5_max_workers  = 4
-uses_streamsat   = false
+uses_streamsat   = true
+streamsat_domain = "caribbean"
 schedule_enabled = false

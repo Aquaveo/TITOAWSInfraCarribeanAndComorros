@@ -7,4 +7,4 @@ memory           = 20480
 ef5_max_workers  = 4
 uses_streamsat   = true
 streamsat_domain = "caribbean"
-schedule_enabled = false # enable after AHWA items 1-3
+schedule_enabled = false # enable after credentials fix

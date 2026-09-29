@@ -3,11 +3,11 @@
 locals {
   markers = merge(
     {
-      failed  = "TITO_TASK_FAILED"
-      cycleok = "TITO_CYCLE_OK"
-      skipped = "TITO_CYCLE_SKIPPED"
+      failed  = "\"TITO_TASK_FAILED\""
+      cycleok = "\"TITO_CYCLE_OK\""
+      skipped = "\"TITO_CYCLE_SKIPPED\""
     },
-    var.uses_streamsat ? { coldstart = "STREAMSAT_COLD_START" } : {},
+    var.uses_streamsat ? { coldstart = "?\"STREAMSAT_COLD_START\" ?\"noise state COLD START\"" } : {},
   )
 }
 
@@ -15,7 +15,7 @@ resource "aws_cloudwatch_log_metric_filter" "marker" {
   for_each       = local.markers
   name           = "${local.name}-${each.key}"
   log_group_name = aws_cloudwatch_log_group.task.name
-  pattern        = "\"${each.value}\""
+  pattern        = each.value
 
   metric_transformation {
     name          = "${each.key}-${var.country}"

@@ -9,9 +9,10 @@ FAIL=0
 
 setup() {
     T=$(mktemp -d)
-    mkdir -p "$T/app/EF5/bin" "$T/app/tito_utils/qpe_utils/STREAM-Sat-realtime/extension/realtime/state" "$T/bin"
+    mkdir -p "$T/app/EF5/bin" "$T/app/tito_utils/ef5/jobs" "$T/app/tito_utils/qpe_utils/STREAM-Sat-realtime/extension" "$T/streamsat/state" "$T/bin"
     printf '#!/bin/bash\n' > "$T/app/EF5/bin/ef5"
-    echo 'ef5_max_workers = None' > "$T/app/Caribbean_Comoros_config.py"
+    echo 'ef5_max_workers = 2' > "$T/app/Caribbean_Comoros_config.py"
+    echo 'os.environ.get("EF5_MAX_WORKERS")' > "$T/app/tito_utils/ef5/jobs/workers.py"
     echo 'imerg_pps_email: ""' > "$T/app/tito_utils/qpe_utils/STREAM-Sat-realtime/extension/config_caribbean.yaml"
     cat > "$T/bin/python" <<EOF
 #!/bin/bash
@@ -29,7 +30,7 @@ EOF
     export TITO_APP_DIR="$T/app" TITO_PYTHON="$T/bin/python" TITO_TASK_DIR="$T"
     export TITO_ENTRYPOINT="$T/bin/entrypoint" TITO_LOCK_FILE="$T/cycle.lock"
     export EF5_RUNTIME=local TITO_GPM_EMAIL=ops@example.org EF5_MAX_WORKERS=4
-    export TITO_USES_STREAMSAT=0 TITO_STRICT_CHECKS=1
+    export TITO_USES_STREAMSAT=0 TITO_STRICT_CHECKS=1 STREAM_SAT_STATE_DIR="$T/streamsat/state"
     unset STUB_SLEEP STUB_RC TITO_CYCLE_TIMEOUT_S
 }
 
@@ -71,9 +72,9 @@ wait "$holder" 2>/dev/null
 rm -rf "$T"
 
 setup
-echo 'ef5_max_workers = 2' > "$T/app/Caribbean_Comoros_config.py"
+rm "$T/app/tito_utils/ef5/jobs/workers.py"
 run_task
-expect "strict precondition fails" '[ "$RC" -eq 1 ] && grep -q "TITO_TASK_FAILED: precondition: ef5_max_workers" <<<"$OUT"'
+expect "strict precondition fails" '[ "$RC" -eq 1 ] && grep -q "TITO_TASK_FAILED: precondition: this TITO release ignores EF5_MAX_WORKERS" <<<"$OUT"'
 expect "strict failure runs nothing" '[ ! -s "$T/entrypoint.log" ]'
 TITO_STRICT_CHECKS=0 run_task
 expect "non-strict warns and runs" '[ "$RC" -eq 0 ] && grep -q "WARNING precondition" <<<"$OUT"'
@@ -99,10 +100,10 @@ rm -rf "$T"
 setup
 TITO_USES_STREAMSAT=1 run_task
 expect "missing state is cold start" '[ "$RC" -eq 0 ] && grep -q "STREAMSAT_COLD_START: no state file" <<<"$OUT"'
-touch "$T/app/tito_utils/qpe_utils/STREAM-Sat-realtime/extension/realtime/state/state_caribbean.pkl"
+touch "$T/streamsat/state/state_caribbean.pkl"
 TITO_USES_STREAMSAT=1 run_task
 expect "fresh state is no cold start" '[ "$RC" -eq 0 ] && ! grep -q STREAMSAT_COLD_START <<<"$OUT"'
-touch -d "-7 hours" "$T/app/tito_utils/qpe_utils/STREAM-Sat-realtime/extension/realtime/state/state_caribbean.pkl"
+touch -d "-7 hours" "$T/streamsat/state/state_caribbean.pkl"
 TITO_USES_STREAMSAT=1 run_task
 expect "stale state is cold start" 'grep -q "STREAMSAT_COLD_START: state older" <<<"$OUT"'
 echo 'imerg_pps_email: "someone@example.org"' > "$T/app/tito_utils/qpe_utils/STREAM-Sat-realtime/extension/config_caribbean.yaml"

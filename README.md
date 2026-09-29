@@ -21,9 +21,9 @@ What persists between cycles, on EFS, one folder per country:
 
 | Mount | Holds |
 | --- | --- |
-| `/app/EF5_conf/states` | EF5 model states |
-| `.../STREAM-Sat-realtime/extension/realtime/state` | STREAM-Sat noise state |
-| `.../STREAM-Sat-realtime/extension/realtime/output` | STREAM-Sat per-half-hour rainfall |
+| `/app/EF5_conf/states` | EF5 model states, kept 48 hours: about 2-15 GB per region, roughly double with gap-fill states |
+| `/data/streamsat/state` | STREAM-Sat noise state (`STREAM_SAT_STATE_DIR`) |
+| `/data/streamsat/output` | STREAM-Sat per-half-hour rainfall (`STREAM_SAT_OUTPUT_DIR`) |
 | `/run/tito` | The cycle lock |
 
 Everything else is written to the task's own disk and discarded at the end of the task.
@@ -94,20 +94,19 @@ Tests run on every pull request: `python3 -m unittest discover -s wrapper/tests`
 The wrapper depends on this contract with the TITO repository:
 
 - **Entrypoint:** `/docker-entrypoint.sh operational --regions <Country>`, with the code under `/app` and the Python environment at `/opt/conda/envs/tito_env2`.
-- **Environment variables:** `EF5_RUNTIME=local`, `EF5_MAX_WORKERS` (honoured when `ef5_max_workers = None`), `TITO_GPM_EMAIL`, `IMERG_PPS_EMAIL`, and the HSAF credentials.
+- **Environment variables:** `EF5_RUNTIME=local`, `EF5_MAX_WORKERS` (overrides `ef5_max_workers`), `STREAM_SAT_STATE_DIR`, `STREAM_SAT_OUTPUT_DIR`, `TITO_GPM_EMAIL`, `IMERG_PPS_EMAIL`, and the HSAF credentials.
 - **Paths:** the EFS paths above, and cycle outputs as `outputs/<YYYYMMDD.HHMMSS>/`.
 - **Static data layout:** `EF5_conf/basic`, `EF5_conf/parameters`, `EF5_conf/pet`, `tito_utils/qpf_utils/StormLab-GFS-realtime/params`, `fim_store/<Country>`.
 
 ## Open items with AHWA
 
-With `TITO_STRICT_CHECKS=1`, the default, a task stops rather than run with a known problem. Until AHWA makes these changes, the following preconditions fail:
+With `TITO_STRICT_CHECKS=1`, the default, a task stops rather than run with a known problem. Until AHWA's credentials change lands, this precondition fails:
 
 - The PPS email hardcoded in the STREAM-Sat YAML files overrides the environment.
-- `ef5_max_workers` is hardcoded in Guatemala, Haiti and Barbados, so `EF5_MAX_WORKERS` is ignored.
 
 Also pending before sizing and enabling countries:
 
-- State retention per branch (`states_keep_hours`).
-- The intended rainfall chain for Antigua and Barbuda and for Comoros.
-- The location of the Antigua and Comoros FIM stores.
-- Benchmarks for Haiti, Barbados, Antigua and Comoros. Guatemala was measured at about 15 minutes and 14.7 GiB peak on 4 vCPU with 4 workers.
+- HSAF FTP credentials for Comoros, stored in `tito/hsaf-ftp`.
+- Benchmarks for Haiti, Barbados, Antigua and Comoros. Guatemala was measured at about 15 minutes and 14.7 GiB peak on 4 vCPU with 4 workers, before Barbados and the other islands moved to STREAM-Sat.
+
+Settled with AHWA in September 2026: every country runs STREAM-Sat and StormLab, with SCaMPR gap-fill (HSAF for Comoros). State retention is 48 hours on every branch. The FIM stores ship on each branch, and `EF5_MAX_WORKERS` overrides the config.

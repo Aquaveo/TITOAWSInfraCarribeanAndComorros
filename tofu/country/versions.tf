@@ -35,7 +35,7 @@ locals {
   account = data.aws_caller_identity.me.account_id
   shared  = data.terraform_remote_state.shared.outputs
 
-  streamsat = "/app/tito_utils/qpe_utils/STREAM-Sat-realtime/extension/realtime"
+  streamsat = "/data/streamsat"
   efs_mounts = merge(
     {
       states = "/app/EF5_conf/states"

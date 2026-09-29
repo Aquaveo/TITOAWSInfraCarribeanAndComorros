@@ -46,14 +46,14 @@ fi
 [ -x "$APP/EF5/bin/ef5" ] || fail "EF5 binary missing"
 [ "${EF5_RUNTIME:-}" = "local" ] || check "EF5_RUNTIME is not local"
 [ -n "${TITO_GPM_EMAIL:-}" ] || check "TITO_GPM_EMAIL is empty"
-if [ -n "${EF5_MAX_WORKERS:-}" ] && ! grep -qE '^ef5_max_workers *= *None' "$APP/Caribbean_Comoros_config.py"; then
-    check "ef5_max_workers is hardcoded, EF5_MAX_WORKERS ignored"
+if [ -n "${EF5_MAX_WORKERS:-}" ] && ! grep -qs EF5_MAX_WORKERS "$APP/tito_utils/ef5/jobs/workers.py"; then
+    check "this TITO release ignores EF5_MAX_WORKERS"
 fi
 if [ "${TITO_USES_STREAMSAT:-0}" = "1" ]; then
     if grep -qE '^imerg_pps_email: *"[^"]+"' "$SS/config_${DOMAIN}.yaml"; then
         check "imerg_pps_email is hardcoded in config_${DOMAIN}.yaml"
     fi
-    state="$SS/realtime/state/state_${DOMAIN}.pkl"
+    state="${STREAM_SAT_STATE_DIR:-$SS/realtime/state}/state_${DOMAIN}.pkl"
     if [ ! -f "$state" ]; then
         echo "STREAMSAT_COLD_START: no state file $state"
     elif [ $(($(date +%s) - $(stat -c %Y "$state"))) -gt "$STATE_MAX_AGE" ]; then
