@@ -44,13 +44,13 @@ export async function fetchJson(url) {
  * Load a country's newest cycle: its latest.json and index.json.
  * @param {string} base
  * @param {string} country
- * @returns {Promise<{latest: object, paths: string[], root: string}>}
+ * @returns {Promise<{latest: object, files: {path: string, size: number}[], paths: string[], root: string}>}
  */
 export async function loadCycle(base, country) {
   const latest = await fetchJson(`${base}/${country}/latest.json`);
   const root = `${base}/${country}/${latest.cycle}`;
   const index = await fetchJson(`${root}/index.json`);
-  return { latest, paths: index.files.map((file) => file.path), root };
+  return { latest, files: index.files, paths: index.files.map((file) => file.path), root };
 }
 
 /**
