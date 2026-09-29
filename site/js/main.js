@@ -6,7 +6,8 @@ import { COUNTRIES, FLOOD_DEPTHS_CM, LEGENDS } from "./config.js";
 import { classifyCells, drawnCount, paintCells } from "./colors.js";
 import { setOptions } from "./dom.js";
 import { ViewerMap } from "./map.js";
-import { basinsOf, cycleTime, floodLayers, floodPath, loadCycle, outputsBase, summaryPath, withoutCountry } from "./outputs.js";
+import { chosenLayer } from "./layers.js";
+import { basinsOf, cycleTime, floodLayers, loadCycle, outputsBase, withoutCountry } from "./outputs.js";
 import { loadRaster, rasterBounds } from "./raster.js";
 import { loadStatus, statusCard } from "./status.js";
 
@@ -21,10 +22,8 @@ let fittedKey = "";
 
 /**
  * Reload every country's card and the time stamp under the board.
- * Also forgets loaded cycles, so the next map change uses the newest.
  */
 async function refreshStatus() {
-  cycles.clear();
   const statuses = await Promise.all(COUNTRIES.map((country) => loadStatus(base, country)));
   const now = new Date();
   document.getElementById("status").replaceChildren(...statuses.map((s) => statusCard(s, now)));
@@ -32,12 +31,19 @@ async function refreshStatus() {
 }
 
 /**
- * The newest cycle of a country, loaded once per page view.
+ * The newest cycle of a country, loaded once per refresh period.
+ * A failed load is forgotten so the next request retries it.
  * @param {string} country
  * @returns {Promise<{latest: object, paths: string[], root: string}>}
  */
 function countryCycle(country) {
-  if (!cycles.has(country)) cycles.set(country, loadCycle(base, country));
+  if (!cycles.has(country)) {
+    const pending = loadCycle(base, country);
+    cycles.set(country, pending);
+    pending.catch(() => {
+      if (cycles.get(country) === pending) cycles.delete(country);
+    });
+  }
   return cycles.get(country);
 }
 
@@ -60,38 +66,28 @@ function toggleControls() {
 }
 
 /**
- * The raster path, legend note and zoom key for the current choice.
- * @param {{paths: string[]}} cycle
- * @returns {{path: string|undefined, note: string, key: string, empty: string}}
- */
-function chosenLayer({ paths }) {
-  const { country, product, basin, stat, period, site, depth } = Object.fromEntries(new FormData(form));
-  if (product === "flood") {
-    const layer = floodLayers(paths).find((l) => l.id === site);
-    return {
-      path: layer && floodPath(paths, layer, Number(depth)),
-      note: `Depth at least ${depth} cm, overbank view`,
-      key: `${country}/${site}`,
-      empty: "No flood site triggered in this cycle.",
-    };
-  }
-  return {
-    path: summaryPath(paths, { basin, product, period, stat }),
-    note: `Ensemble ${stat}, ${period}`,
-    key: `${country}/${basin}`,
-    empty: "This product is not produced for this country.",
-  };
-}
-
-/**
- * Draw the chosen product; newer requests win over slower older ones.
+ * Draw the chosen product. Newer requests win over slower older ones,
+ * including their errors.
  */
 async function draw() {
   const token = ++drawToken;
+  const current = () => token === drawToken;
+  try {
+    await drawLayer(current);
+  } catch (error) {
+    if (current()) showError(error);
+  }
+}
+
+/**
+ * Load, colour and show the chosen raster, stopping once superseded.
+ * @param {() => boolean} current whether this draw is still the newest
+ */
+async function drawLayer(current) {
   const cycle = await countryCycle(form.country.value);
-  if (token !== drawToken) return;
+  if (!current()) return;
   const legend = LEGENDS[form.product.value];
-  const layer = chosenLayer(cycle);
+  const layer = chosenLayer(cycle.paths, Object.fromEntries(new FormData(form)));
   if (!layer.path) {
     viewer.clear();
     viewer.setLegend(null);
@@ -100,7 +96,7 @@ async function draw() {
   }
   info.textContent = "Loading…";
   const raster = await loadRaster(`${cycle.root}/${layer.path}`);
-  if (token !== drawToken) return;
+  if (!current()) return;
   const bounds = rasterBounds(raster.bbox, raster.epsg);
   const classes = classifyCells(raster.values, legend.breaks, raster.nodata);
   viewer.show(paintCells(classes, raster.width, raster.height, legend.colors), bounds, layer.key !== fittedKey);
@@ -121,11 +117,29 @@ function showError(error) {
 
 /**
  * React to a country change: new cycle, new options, redraw.
+ * Gives up when another country was picked meanwhile.
  */
 async function changeCountry() {
-  const cycle = await countryCycle(form.country.value);
-  fillCycleOptions(cycle);
+  const country = form.country.value;
+  try {
+    const cycle = await countryCycle(country);
+    if (country !== form.country.value) return;
+    fillCycleOptions(cycle);
+  } catch (error) {
+    if (country === form.country.value) showError(error);
+    return;
+  }
   await draw();
+}
+
+/**
+ * Periodic refresh: forget loaded cycles, reload the cards and move
+ * the map to the newest cycle of the selected country.
+ */
+function refresh() {
+  cycles.clear();
+  refreshStatus();
+  changeCountry();
 }
 
 /**
@@ -134,16 +148,15 @@ async function changeCountry() {
 function start() {
   setOptions(form.country, COUNTRIES.map((c) => ({ value: c.key, label: c.name })));
   setOptions(form.depth, FLOOD_DEPTHS_CM.map((d) => ({ value: String(d), label: `${d} cm` })));
-  form.country.addEventListener("change", () => changeCountry().catch(showError));
+  form.country.addEventListener("change", changeCountry);
   form.addEventListener("change", (event) => {
     if (event.target.name === "country") return;
     toggleControls();
-    draw().catch(showError);
+    draw();
   });
   toggleControls();
-  changeCountry().catch(showError);
-  refreshStatus();
-  setInterval(refreshStatus, REFRESH_MS);
+  refresh();
+  setInterval(refresh, REFRESH_MS);
 }
 
 start();
