@@ -22,6 +22,7 @@ class FakeS3:
         self.objects = objects or {}
         self.uploaded = []
         self.put = {}
+        self.order = []
         self.downloads = 0
 
     def get_object(self, Bucket, Key):
@@ -33,9 +34,11 @@ class FakeS3:
 
     def upload_file(self, Filename, Bucket, Key):
         self.uploaded.append(Key)
+        self.order.append(Key)
 
     def put_object(self, Bucket, Key, Body, ContentType):
         self.put[Key] = json.loads(Body)
+        self.order.append(Key)
 
 
 def digest(data):
@@ -113,13 +116,31 @@ class PublishOutputs(TitoS3Case):
         latest = tito_s3.s3.put["outputs/guatemala/latest.json"]
         self.assertEqual(latest["cycle"], "20260927.180000")
 
+    def test_each_cycle_gets_an_index_after_its_files(self):
+        self.make_cycle("20260927.170000", ["guatemala_90m/a.tif", "guatemala_90m/summary/s.tif"])
+        self.make_cycle("20260927.180000", ["guatemala_90m/b.tif"])
+        tito_s3.s3 = FakeS3()
+        tito_s3.publish_outputs()
+        index = tito_s3.s3.put["outputs/guatemala/20260927.170000/index.json"]
+        self.assertEqual(index["cycle"], "20260927.170000")
+        self.assertEqual([f["path"] for f in index["files"]],
+                         ["guatemala_90m/a.tif", "guatemala_90m/summary/s.tif"])
+        self.assertTrue(all(f["size"] >= 0 for f in index["files"]))
+        self.assertIn("outputs/guatemala/20260927.180000/index.json", tito_s3.s3.put)
+        self.assertEqual(tito_s3.s3.order[-1], "outputs/guatemala/latest.json")
+        first_index = tito_s3.s3.order.index("outputs/guatemala/20260927.170000/index.json")
+        self.assertLess(tito_s3.s3.order.index(
+            "outputs/guatemala/20260927.170000/guatemala_90m/a.tif"), first_index)
+        latest = tito_s3.s3.put["outputs/guatemala/latest.json"]
+        self.assertEqual(latest["index"], "outputs/guatemala/20260927.180000/index.json")
+
     def test_override_run_leaves_latest_unchanged(self):
         self.make_cycle("20250101.000000", ["guatemala_90m/a.tif"])
         os.environ["TITO_UPDATE_LATEST"] = "0"
         tito_s3.s3 = FakeS3()
         tito_s3.publish_outputs()
         self.assertEqual(len(tito_s3.s3.uploaded), 1)
-        self.assertEqual(tito_s3.s3.put, {})
+        self.assertEqual(list(tito_s3.s3.put), ["outputs/guatemala/20250101.000000/index.json"])
 
     def test_no_cycle_folder_exits(self):
         (self.app / "outputs/logs").mkdir(parents=True)
