@@ -26,8 +26,10 @@ variable "outputs_expiration_days" {
 }
 
 variable "alert_emails" {
-  type    = list(string)
-  default = []
+  type        = list(string)
+  default     = []
+  sensitive   = true
+  description = "From the ALERT_EMAILS secret."
 }
 
 variable "container_insights" {
