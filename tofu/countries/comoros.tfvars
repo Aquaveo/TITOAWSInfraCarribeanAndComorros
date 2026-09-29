@@ -1,6 +1,6 @@
 country          = "comoros"
 tito_region      = "Comoros"
-tito_version     = "0c4be51ff6df8e5fb7930ecf685aa6e7cd39290a"
+tito_version     = "9739b7ba8609e9cbad40e764b29c37cccd6e7126"
 data_version     = "0c4be51ff6df"
 cpu              = 4096 # AHWA estimate, benchmark first
 memory           = 16384

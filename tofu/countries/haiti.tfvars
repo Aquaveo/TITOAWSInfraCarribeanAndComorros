@@ -1,6 +1,6 @@
 country          = "haiti"
 tito_region      = "Haiti"
-tito_version     = "01df747451430b8246d3d518f1f68bf220921dd8"
+tito_version     = "eb3f859a05070763b74e9eb57ee3950840fe4380"
 data_version     = "01df74745143"
 cpu              = 4096 # like Guatemala, unmeasured
 memory           = 20480
