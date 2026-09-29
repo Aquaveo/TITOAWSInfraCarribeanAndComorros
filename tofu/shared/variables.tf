@@ -46,3 +46,15 @@ variable "images_per_country" {
   type    = number
   default = 10
 }
+
+variable "site_domain" {
+  type        = string
+  default     = ""
+  description = "Custom name for the viewer, e.g. tito.uffis.org. Empty keeps only the CloudFront name."
+}
+
+variable "site_domain_delegated" {
+  type        = bool
+  default     = false
+  description = "Set true once the parent zone has the site_name_servers NS records; adds the certificate and alias."
+}
