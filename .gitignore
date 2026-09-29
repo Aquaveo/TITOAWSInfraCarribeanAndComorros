@@ -7,3 +7,4 @@ crash.log
 backend.hcl
 *.auto.tfvars
 __pycache__/
+docs/plans/
