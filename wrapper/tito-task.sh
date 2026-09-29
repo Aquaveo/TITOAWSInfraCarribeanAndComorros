@@ -58,6 +58,9 @@ fi
 [ -x "$APP/EF5/bin/ef5" ] || fail "EF5 binary missing"
 [ "${EF5_RUNTIME:-}" = "local" ] || check "EF5_RUNTIME is not local"
 [ -n "${TITO_GPM_EMAIL:-}" ] || check "TITO_GPM_EMAIL is empty"
+pointers=$(find "$APP" \( -path "$APP/outputs" -o -path "$APP/EF5_conf/states" \) -prune \
+    -o -type f -size -1024c -exec grep -l '^version https://git-lfs' {} + 2>/dev/null)
+[ -z "$pointers" ] || check "Git LFS pointers in image: $(echo "$pointers" | head -3 | tr '\n' ' ')"
 if [ -n "${EF5_MAX_WORKERS:-}" ] && ! grep -qs EF5_MAX_WORKERS "$APP/tito_utils/ef5/jobs/workers.py"; then
     check "this TITO release ignores EF5_MAX_WORKERS"
 fi

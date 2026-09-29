@@ -82,6 +82,18 @@ expect "non-strict warns and runs" '[ "$RC" -eq 0 ] && grep -q "WARNING precondi
 rm -rf "$T"
 
 setup
+mkdir -p "$T/app/ibf_data/Guatemala"
+printf 'version https://git-lfs.github.com/spec/v1\noid sha256:ab\nsize 9\n' > "$T/app/ibf_data/Guatemala/a.gpkg"
+run_task
+expect "LFS pointer fails" '[ "$RC" -eq 1 ] && grep -q "Git LFS pointers in image: .*a.gpkg" <<<"$OUT"'
+expect "LFS failure runs nothing" '[ ! -s "$T/entrypoint.log" ]'
+mkdir -p "$T/app/outputs/x"
+mv "$T/app/ibf_data/Guatemala/a.gpkg" "$T/app/outputs/x/"
+run_task
+expect "pointer in outputs ignored" '[ "$RC" -eq 0 ]'
+rm -rf "$T"
+
+setup
 STUB_SLEEP=5 TITO_CYCLE_TIMEOUT_S=1 run_task
 expect "hung run times out" '[ "$RC" -eq 1 ] && grep -q "timed out after 1s" <<<"$OUT"'
 expect "timeout skips publish" '! grep -q publish-outputs "$T/python.log"'
