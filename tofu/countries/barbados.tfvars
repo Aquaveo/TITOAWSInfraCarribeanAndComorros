@@ -7,4 +7,4 @@ memory           = 32768
 ef5_max_workers  = 6
 uses_streamsat   = true
 streamsat_domain = "caribbean"
-schedule_enabled = false
+schedule_enabled = true
