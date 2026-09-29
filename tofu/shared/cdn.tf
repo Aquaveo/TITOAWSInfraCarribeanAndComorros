@@ -1,4 +1,4 @@
-# CloudFront: viewer site and public outputs
+# CloudFront: viewer and outputs
 
 locals {
   # AWS managed policy IDs
