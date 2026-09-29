@@ -1,0 +1,10 @@
+country          = "antigua"
+tito_region      = "Antigua"
+tito_version     = "1e2d75b29f9196bdd774c02a6f58715ada7776fb"
+data_version     = "1e2d75b29f91"
+cpu              = 4096 # AHWA estimate, benchmark first
+memory           = 16384
+ef5_max_workers  = 4
+uses_streamsat   = true
+streamsat_domain = "caribbean"
+schedule_enabled = false

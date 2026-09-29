@@ -1,0 +1,44 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.10.6
+      - run: tofu fmt -check -recursive
+        working-directory: tofu
+
+  tofu:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        root: [bootstrap, shared, country]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.10.6
+      - run: tofu init -backend=false -input=false
+        working-directory: tofu/${{ matrix.root }}
+      - run: tofu validate
+        working-directory: tofu/${{ matrix.root }}
+
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck wrapper/tito-task.sh wrapper/tests/test_tito_task.sh scripts/publish-static.sh
+      - run: python3 -m py_compile wrapper/tito_s3.py wrapper/smoke_test.py
+      - run: python3 -m unittest discover -s wrapper/tests -v
+      - run: bash wrapper/tests/test_tito_task.sh

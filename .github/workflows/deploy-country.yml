@@ -1,0 +1,107 @@
+name: Deploy country
+
+on:
+  workflow_dispatch:
+    inputs:
+      country:
+        type: choice
+        options: [guatemala, haiti, barbados, antigua, comoros]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: tofu-${{ inputs.country }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.country }}
+    env:
+      COUNTRY: ${{ inputs.country }}
+      TF_VAR_state_bucket: ${{ vars.STATE_BUCKET }}
+      TF_VAR_permissions_boundary_arn: ${{ vars.CI_BOUNDARY_ARN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versions from tfvars
+        run: |
+          tfvar() { sed -n "s/^$1 *= *\"\(.*\)\".*/\1/p" "tofu/countries/$COUNTRY.tfvars"; }
+          tito_version=$(tfvar tito_version)
+          data_version=$(tfvar data_version)
+          for v in "$tito_version" "$data_version"; do
+            if ! [[ "$v" =~ ^[A-Za-z0-9._-]+$ ]] || [ "$v" = "pending" ]; then
+              echo "Set tito_version and data_version in tofu/countries/$COUNTRY.tfvars" >&2
+              exit 1
+            fi
+          done
+          wrapper_rev=$(git rev-parse --short=12 HEAD:wrapper)
+          {
+            echo "TITO_VERSION=$tito_version"
+            echo "DATA_VERSION=$data_version"
+            echo "TF_VAR_wrapper_rev=$wrapper_rev"
+            echo "TAG=$COUNTRY-$tito_version-$wrapper_rev"
+          } >> "$GITHUB_ENV"
+
+      - name: Check out AHWA's TITO at the pinned commit
+        uses: actions/checkout@v4
+        with:
+          repository: AHWALab/TITOCaribbeanAndComoros
+          ref: ${{ env.TITO_VERSION }}
+          path: tito
+          lfs: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build TITO and wrapper images
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/tito
+        run: |
+          [ "$(git -C tito rev-parse HEAD)" = "$TITO_VERSION" ] || { echo "tito_version must be a full commit SHA" >&2; exit 1; }
+          docker build -t "tito-base:$TITO_VERSION" tito
+          docker build --build-arg BASE_IMAGE="tito-base:$TITO_VERSION" -t "$IMAGE:$TAG" wrapper
+
+      - name: Smoke test
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/tito
+        run: |
+          docker run --rm --entrypoint /opt/conda/envs/tito_env2/bin/python \
+            "$IMAGE:$TAG" /opt/tito-task/smoke_test.py
+
+      - name: Push image
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/tito
+        run: |
+          if aws ecr describe-images --repository-name tito --image-ids imageTag="$TAG" >/dev/null 2>&1; then
+            echo "tito:$TAG already in ECR, same wrapper and release"
+          else
+            docker push "$IMAGE:$TAG"
+          fi
+
+      - name: Check static data
+        env:
+          DATA_BUCKET: ${{ vars.DATA_BUCKET }}
+        run: aws s3 ls "s3://$DATA_BUCKET/static/$COUNTRY/$DATA_VERSION/manifest.sha256"
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.10.6
+      - name: Apply
+        working-directory: tofu/country
+        env:
+          STATE_BUCKET: ${{ vars.STATE_BUCKET }}
+          AWS_REGION_NAME: ${{ vars.AWS_REGION }}
+        run: |
+          tofu init -input=false \
+            -backend-config="bucket=$STATE_BUCKET" \
+            -backend-config="region=$AWS_REGION_NAME" \
+            -backend-config="key=tito/country-$COUNTRY.tfstate"
+          tofu apply -input=false -auto-approve -var-file="../countries/$COUNTRY.tfvars"

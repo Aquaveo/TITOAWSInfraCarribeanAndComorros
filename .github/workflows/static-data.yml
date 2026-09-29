@@ -1,0 +1,56 @@
+name: Publish static data
+
+on:
+  workflow_dispatch:
+    inputs:
+      country:
+        type: choice
+        options: [guatemala, haiti, barbados, antigua, comoros]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: static-${{ inputs.country }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.country }}
+    env:
+      COUNTRY: ${{ inputs.country }}
+      DATA_BUCKET: ${{ vars.DATA_BUCKET }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Versions from tfvars
+        id: region
+        run: |
+          tfvar() { sed -n "s/^$1 *= *\"\(.*\)\".*/\1/p" "tofu/countries/$COUNTRY.tfvars"; }
+          name=$(tfvar tito_region)
+          tito_version=$(tfvar tito_version)
+          data_version=$(tfvar data_version)
+          for v in "$name" "$tito_version" "$data_version"; do
+            if ! [[ "$v" =~ ^[A-Za-z0-9._-]+$ ]] || [ "$v" = "pending" ]; then
+              echo "Set tito_region, tito_version and data_version in tofu/countries/$COUNTRY.tfvars" >&2
+              exit 1
+            fi
+          done
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "TITO_VERSION=$tito_version" >> "$GITHUB_ENV"
+          echo "DATA_VERSION=$data_version" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v4
+        with:
+          repository: AHWALab/TITOCaribbeanAndComoros
+          ref: ${{ env.TITO_VERSION }}
+          path: tito
+          lfs: true
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - env:
+          REGION_NAME: ${{ steps.region.outputs.name }}
+        run: scripts/publish-static.sh tito "$COUNTRY" "$REGION_NAME" "$DATA_VERSION" "$DATA_BUCKET"
