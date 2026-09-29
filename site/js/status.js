@@ -13,7 +13,8 @@ const TIME_FORMAT = new Intl.DateTimeFormat("en-GB", {
 
 /**
  * Gather one country's status from its latest cycle.
- * Never throws: a failure is returned as the error field.
+ * Never throws: a failure is returned as the error field. Flood site
+ * summaries that cannot be read are counted, not fatal.
  * @param {string} base
  * @param {{key: string, name: string}} country
  * @returns {Promise<object>}
@@ -21,15 +22,17 @@ const TIME_FORMAT = new Intl.DateTimeFormat("en-GB", {
 export async function loadStatus(base, country) {
   try {
     const { latest, paths, root } = await loadCycle(base, country.key);
-    const summaries = await Promise.all(
+    const results = await Promise.allSettled(
       siteSummaryPaths(paths).map((path) => fetchJson(`${root}/${path}`)),
     );
+    const summaries = results.filter((r) => r.status === "fulfilled").map((r) => r.value);
     return {
       ...country,
       cycle: latest.cycle,
       published: new Date(latest.published_utc),
       files: paths.length,
-      sites: summaries.length,
+      sites: results.length,
+      unreadSites: results.length - summaries.length,
       triggered: summaries.filter((s) => s.trigger && s.trigger.triggered).length,
     };
   } catch (error) {
@@ -93,5 +96,8 @@ export function statusCard(status, now) {
     element("p", "detail", `${status.files.toLocaleString("en")} files`),
     element("p", status.triggered ? "detail alert" : "detail", floods),
   );
+  if (status.unreadSites) {
+    card.append(element("p", "detail", `${status.unreadSites} flood site summaries unreadable`));
+  }
   return card;
 }

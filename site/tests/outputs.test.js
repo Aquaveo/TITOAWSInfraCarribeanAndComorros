@@ -18,12 +18,17 @@ const PATHS = [
 ];
 
 test("base defaults to this site's outputs", () => {
-  assert.equal(outputsBase({ search: "", origin: "https://x.net" }), "https://x.net/outputs");
+  assert.equal(outputsBase({ search: "", hostname: "x.net", origin: "https://x.net" }), "https://x.net/outputs");
 });
 
-test("base can be overridden for local testing", () => {
-  assert.equal(outputsBase({ search: "?base=http://127.0.0.1:8765/outputs/", origin: "https://x.net" }),
-    "http://127.0.0.1:8765/outputs");
+test("base can be overridden when testing locally", () => {
+  const local = { search: "?base=https://cdn.example/outputs/", hostname: "127.0.0.1", origin: "http://127.0.0.1:8766" };
+  assert.equal(outputsBase(local), "https://cdn.example/outputs");
+});
+
+test("base override is ignored on the public site", () => {
+  const site = { search: "?base=https://evil.example/outputs", hostname: "x.net", origin: "https://x.net" };
+  assert.equal(outputsBase(site), "https://x.net/outputs");
 });
 
 test("cycle folder names parse as UTC", () => {

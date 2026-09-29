@@ -3,14 +3,18 @@
  * and finding product files inside a cycle.
  */
 
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+
 /**
- * Base URL of the outputs tree. A ?base= query parameter overrides the
- * default of this site's own /outputs, for local testing.
+ * Base URL of the outputs tree: this site's own /outputs. On a local
+ * host a ?base= query parameter may point elsewhere, for testing; the
+ * public site ignores it so links cannot swap in other data.
  * @param {Location} location
  * @returns {string}
  */
 export function outputsBase(location) {
-  const override = new URLSearchParams(location.search).get("base");
+  const local = LOCAL_HOSTS.has(location.hostname);
+  const override = local ? new URLSearchParams(location.search).get("base") : null;
   return (override || `${location.origin}/outputs`).replace(/\/$/, "");
 }
 
