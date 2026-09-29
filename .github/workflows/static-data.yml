@@ -6,12 +6,6 @@ on:
       country:
         type: choice
         options: [guatemala, haiti, barbados, antigua, comoros]
-      ref:
-        description: AHWA branch or tag to package
-        required: true
-      data_version:
-        description: Version label, normally the AHWA release
-        required: true
 
 permissions:
   contents: read
@@ -28,23 +22,29 @@ jobs:
     environment: ${{ inputs.country }}
     env:
       COUNTRY: ${{ inputs.country }}
-      AHWA_REF: ${{ inputs.ref }}
-      DATA_VERSION: ${{ inputs.data_version }}
       DATA_BUCKET: ${{ vars.DATA_BUCKET }}
     steps:
       - uses: actions/checkout@v4
-      - name: Check inputs
+      - name: Versions from tfvars
         id: region
         run: |
-          [[ "$DATA_VERSION" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "invalid data_version" >&2; exit 1; }
-          [[ "$AHWA_REF" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "invalid ref" >&2; exit 1; }
-          name=$(sed -n 's/^tito_region *= *"\(.*\)".*/\1/p' "tofu/countries/$COUNTRY.tfvars")
-          [ -n "$name" ] || { echo "no tito_region for $COUNTRY" >&2; exit 1; }
+          tfvar() { sed -n "s/^$1 *= *\"\(.*\)\".*/\1/p" "tofu/countries/$COUNTRY.tfvars"; }
+          name=$(tfvar tito_region)
+          tito_version=$(tfvar tito_version)
+          data_version=$(tfvar data_version)
+          for v in "$name" "$tito_version" "$data_version"; do
+            if ! [[ "$v" =~ ^[A-Za-z0-9._-]+$ ]] || [ "$v" = "pending" ]; then
+              echo "Set tito_region, tito_version and data_version in tofu/countries/$COUNTRY.tfvars" >&2
+              exit 1
+            fi
+          done
           echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "TITO_VERSION=$tito_version" >> "$GITHUB_ENV"
+          echo "DATA_VERSION=$data_version" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
           repository: AHWALab/TITOCaribbeanAndComoros
-          ref: ${{ env.AHWA_REF }}
+          ref: ${{ env.TITO_VERSION }}
           path: tito
           lfs: true
       - uses: aws-actions/configure-aws-credentials@v4

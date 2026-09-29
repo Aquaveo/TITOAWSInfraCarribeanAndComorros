@@ -69,14 +69,20 @@ State lives in one S3 bucket, with the keys `tito/bootstrap.tfstate`, `tito/shar
 
 ## Deploying a country
 
-Each country's tfvars file is the record of what runs: `tito_version` is the AHWA release and `data_version` is the static data version. Change them through a pull request, so the plan shows the exact image and data about to go live.
+Each country's tfvars file is the record of what runs:
+- `tito_version` is the full commit SHA of the country's branch in AHWA's repository.
+- `data_version` labels the static data published from that commit.
 
-1. **Publish static data** for the AHWA release: country, AHWA branch or tag, and a version label. Versions are immutable; publishing the same label twice is refused.
-2. Set `tito_version` and `data_version` in `tofu/countries/<country>.tfvars` and merge to `main`.
-3. **Deploy country** with the country.
+Change them through a pull request, so the plan shows the exact image and data about to go live.
 
-   The workflow reads the versions from the tfvars, builds the wrapper on `ghcr.io/ahwalab/titocaribbeanandcomoros/tito-<country>:<tito_version>`, and runs the smoke test. It pushes the image to ECR as `<country>-<tito_version>-<wrapper rev>`, checks the static data exists, and applies `tofu/country`. The wrapper rev is the git tree hash of `wrapper/`, so a wrapper change always produces a new image, and an unchanged wrapper reuses the existing one.
-4. Set `schedule_enabled = true` in the tfvars once the country is ready to run hourly, and deploy again.
+1. Set `tito_version` and `data_version` in `tofu/countries/<country>.tfvars` and merge to `main`.
+2. **Publish static data** for the country. It checks out AHWA's repository at `tito_version` with Git LFS and publishes to `static/<country>/<data_version>/`. Versions are immutable; publishing the same label twice is refused.
+3. **Deploy country** for the country.
+
+   The workflow builds AHWA's image from the pinned commit with their own Dockerfile, then the wrapper on top, and runs the smoke test. It pushes the result to ECR as `<country>-<tito_version>-<wrapper rev>`, checks the static data exists, and applies `tofu/country`. The wrapper rev is the git tree hash of `wrapper/`, so a wrapper change always produces a new image.
+4. Set `schedule_enabled = true` in the tfvars once the first manual run looks right, and deploy again.
+
+We build AHWA's image ourselves because their release workflow publishes images only for `v*` tags, and the branches have none.
 
 Deploy workflows run only from `main`. ECR keeps the newest 10 images per country.
 
@@ -100,13 +106,11 @@ The wrapper depends on this contract with the TITO repository:
 
 ## Open items with AHWA
 
-With `TITO_STRICT_CHECKS=1`, the default, a task stops rather than run with a known problem. Until AHWA's credentials change lands, this precondition fails:
+**PPS credentials (temporary workaround).** The STREAM-Sat YAML files still hardcode a PPS email that overrides the environment. Until AHWA's fix lands, `pps_yaml_override = true` makes the wrapper blank that one value in the task's own copy of the YAML, so STREAM-Sat uses `IMERG_PPS_EMAIL` from Secrets Manager. Nothing in AHWA's repository or image changes, and only an empty value is written. Once the YAML ships with an empty value, the step finds nothing to change and does nothing. Set `pps_yaml_override = false` then to remove it. With the workaround off, the strict precondition stops the task instead.
 
-- The PPS email hardcoded in the STREAM-Sat YAML files overrides the environment.
+Also pending before enabling countries:
 
-Also pending before sizing and enabling countries:
-
-- HSAF FTP credentials for Comoros, stored in `tito/hsaf-ftp`.
-- Benchmarks for Haiti, Barbados, Antigua and Comoros. Guatemala was measured at about 15 minutes and 14.7 GiB peak on 4 vCPU with 4 workers, before Barbados and the other islands moved to STREAM-Sat.
+- **HSAF FTP credentials for Comoros**, stored in `tito/hsaf-ftp`. Until they arrive, Comoros can be deployed but not scheduled.
+- **Benchmarks** for Haiti, Barbados, Antigua and Comoros. Their current sizes are starting points: Barbados has 8 vCPU / 32 GiB for its 50 StormLab members, the others follow Guatemala or AHWA's estimate. Right-size them from Container Insights after the first cycles. Guatemala was measured at about 15 minutes and 14.7 GiB peak on 4 vCPU with 4 workers.
 
 Settled with AHWA in September 2026: every country runs STREAM-Sat and StormLab, with SCaMPR gap-fill (HSAF for Comoros). State retention is 48 hours on every branch. The FIM stores ship on each branch, and `EF5_MAX_WORKERS` overrides the config.

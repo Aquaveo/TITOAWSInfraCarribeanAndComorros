@@ -44,8 +44,15 @@ jobs:
             echo "DATA_VERSION=$data_version"
             echo "TF_VAR_wrapper_rev=$wrapper_rev"
             echo "TAG=$COUNTRY-$tito_version-$wrapper_rev"
-            echo "BASE_IMAGE=ghcr.io/ahwalab/titocaribbeanandcomoros/tito-$COUNTRY:$tito_version"
           } >> "$GITHUB_ENV"
+
+      - name: Check out AHWA's TITO at the pinned commit
+        uses: actions/checkout@v4
+        with:
+          repository: AHWALab/TITOCaribbeanAndComoros
+          ref: ${{ env.TITO_VERSION }}
+          path: tito
+          lfs: false
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -54,12 +61,13 @@ jobs:
       - id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build wrapper image
+      - name: Build TITO and wrapper images
         env:
           IMAGE: ${{ steps.ecr.outputs.registry }}/tito
         run: |
-          docker pull "$BASE_IMAGE"
-          docker build --build-arg BASE_IMAGE="$BASE_IMAGE" -t "$IMAGE:$TAG" wrapper
+          [ "$(git -C tito rev-parse HEAD)" = "$TITO_VERSION" ] || { echo "tito_version must be a full commit SHA" >&2; exit 1; }
+          docker build -t "tito-base:$TITO_VERSION" tito
+          docker build --build-arg BASE_IMAGE="tito-base:$TITO_VERSION" -t "$IMAGE:$TAG" wrapper
 
       - name: Smoke test
         env:

@@ -1,8 +1,8 @@
 country          = "haiti"
 tito_region      = "Haiti"
-tito_version     = "pending"
-data_version     = "pending"
-cpu              = 4096 # unmeasured, benchmark first
+tito_version     = "01df747451430b8246d3d518f1f68bf220921dd8"
+data_version     = "01df74745143"
+cpu              = 4096 # like Guatemala, unmeasured
 memory           = 20480
 ef5_max_workers  = 4
 uses_streamsat   = true

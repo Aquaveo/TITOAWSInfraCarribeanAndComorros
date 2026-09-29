@@ -1,7 +1,7 @@
 country          = "comoros"
 tito_region      = "Comoros"
-tito_version     = "pending"
-data_version     = "pending"
+tito_version     = "0c4be51ff6df8e5fb7930ecf685aa6e7cd39290a"
+data_version     = "0c4be51ff6df"
 cpu              = 4096 # AHWA estimate, benchmark first
 memory           = 16384
 ef5_max_workers  = 4

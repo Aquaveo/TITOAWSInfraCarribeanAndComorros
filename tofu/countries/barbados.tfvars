@@ -1,10 +1,10 @@
 country          = "barbados"
 tito_region      = "Barbados"
-tito_version     = "pending"
-data_version     = "pending"
-cpu              = 4096 # AHWA estimate, benchmark first
-memory           = 16384
-ef5_max_workers  = 4
+tito_version     = "11aae1b32f66ce068a14ee897e029a3ba4f97dbb"
+data_version     = "11aae1b32f66"
+cpu              = 8192 # 50 StormLab members, unmeasured
+memory           = 32768
+ef5_max_workers  = 6
 uses_streamsat   = true
 streamsat_domain = "caribbean"
 schedule_enabled = false

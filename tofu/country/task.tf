@@ -9,6 +9,7 @@ locals {
     { name = "STREAM_SAT_STATE_DIR", value = "${local.streamsat}/state" },
     { name = "STREAM_SAT_OUTPUT_DIR", value = "${local.streamsat}/output" },
     { name = "TITO_STRICT_CHECKS", value = var.strict_checks ? "1" : "0" },
+    { name = "TITO_PPS_YAML_OVERRIDE", value = var.pps_yaml_override ? "1" : "0" },
     { name = "TITO_IMAGE_TAG", value = local.image_tag },
     { name = "TITO_CYCLE_TIMEOUT_S", value = tostring(var.cycle_timeout_s) },
     { name = "EF5_RUNTIME", value = "local" },

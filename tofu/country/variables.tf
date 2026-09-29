@@ -96,6 +96,12 @@ variable "strict_checks" {
   description = "Stop the task when a TITO precondition fails."
 }
 
+variable "pps_yaml_override" {
+  type        = bool
+  default     = true
+  description = "Blank AHWA's hardcoded PPS email in the task's copy until their fix lands."
+}
+
 variable "cycle_timeout_s" {
   type        = number
   default     = 3000

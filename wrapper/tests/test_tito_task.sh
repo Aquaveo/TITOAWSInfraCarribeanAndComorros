@@ -109,6 +109,11 @@ expect "stale state is cold start" 'grep -q "STREAMSAT_COLD_START: state older" 
 echo 'imerg_pps_email: "someone@example.org"' > "$T/app/tito_utils/qpe_utils/STREAM-Sat-realtime/extension/config_caribbean.yaml"
 TITO_USES_STREAMSAT=1 run_task
 expect "hardcoded PPS email fails" '[ "$RC" -eq 1 ] && grep -q "imerg_pps_email is hardcoded" <<<"$OUT"'
+TITO_USES_STREAMSAT=1 TITO_PPS_YAML_OVERRIDE=1 run_task
+expect "override blanks PPS email and runs" '[ "$RC" -eq 0 ] && grep -q PPS_YAML_OVERRIDE <<<"$OUT"'
+expect "override leaves an empty value" 'grep -qx "imerg_pps_email: \"\"" "$T/app/tito_utils/qpe_utils/STREAM-Sat-realtime/extension/config_caribbean.yaml"'
+TITO_USES_STREAMSAT=1 TITO_PPS_YAML_OVERRIDE=1 run_task
+expect "override is a no-op once fixed" '[ "$RC" -eq 0 ] && ! grep -q PPS_YAML_OVERRIDE <<<"$OUT"'
 rm -rf "$T"
 
 echo "tito-task.sh tests: $PASS passed, $FAIL failed"

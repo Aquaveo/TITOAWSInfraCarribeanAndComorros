@@ -42,6 +42,18 @@ if compgen -G "$APP/fim_store/$TITO_REGION/*.zarr.zip*" >/dev/null; then
     (cd "$APP" && "$PY" fim_store/unzip_stores.py "$TITO_REGION") || fail "FIM store unzip"
 fi
 
+# Temporary PPS workaround, self-disabling
+if [ "${TITO_USES_STREAMSAT:-0}" = "1" ] && [ "${TITO_PPS_YAML_OVERRIDE:-0}" = "1" ]; then
+    yaml="$SS/config_${DOMAIN}.yaml"
+    if grep -qE '^imerg_pps_email: *"[^"]+"' "$yaml"; then
+        sed -i -E 's/^(imerg_pps_email: *)"[^"]+"/\1""/' "$yaml" || fail "PPS override failed"
+        if grep -qE '^imerg_pps_email: *"[^"]+"' "$yaml"; then
+            fail "PPS override did not apply"
+        fi
+        echo "PPS_YAML_OVERRIDE: blanked imerg_pps_email in the task copy of config_${DOMAIN}.yaml"
+    fi
+fi
+
 # Preconditions, read only
 [ -x "$APP/EF5/bin/ef5" ] || fail "EF5 binary missing"
 [ "${EF5_RUNTIME:-}" = "local" ] || check "EF5_RUNTIME is not local"
