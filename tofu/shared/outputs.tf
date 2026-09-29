@@ -45,3 +45,11 @@ output "alerts_topic_arn" {
 output "outputs_url" {
   value = "https://${aws_cloudfront_distribution.outputs.domain_name}/outputs"
 }
+
+output "site_url" {
+  value = "https://${aws_cloudfront_distribution.outputs.domain_name}/"
+}
+
+output "distribution_id" {
+  value = aws_cloudfront_distribution.outputs.id
+}
