@@ -52,3 +52,5 @@ jobs:
           node-version: 22
       - run: node --test tests/*.test.js
         working-directory: site
+      - run: node tests/smoke.mjs
+        working-directory: site

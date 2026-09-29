@@ -1,0 +1,3 @@
+{
+  "trigger": {"threshold": 1.0, "max_uq": 2.1, "triggered": true}
+}
