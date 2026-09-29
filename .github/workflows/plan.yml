@@ -29,6 +29,7 @@ jobs:
         run: |
           if [ "${{ matrix.target }}" = "shared" ]; then
             dir=tofu/shared; key=tito/shared.tfstate; vars=shared.tfvars
+            export TF_VAR_alert_emails='${{ secrets.ALERT_EMAILS || '[]' }}'
           else
             dir=tofu/country; key=tito/country-${{ matrix.target }}.tfstate
             vars=../countries/${{ matrix.target }}.tfvars

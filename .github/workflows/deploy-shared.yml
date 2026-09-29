@@ -16,6 +16,8 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: shared
+    env:
+      TF_VAR_alert_emails: ${{ secrets.ALERT_EMAILS || '[]' }}
     defaults:
       run:
         working-directory: tofu/shared
