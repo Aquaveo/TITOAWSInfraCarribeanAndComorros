@@ -33,11 +33,13 @@ Everything else is written to the task's own disk and discarded at the end of th
 | Path | Contents | Applied by |
 | --- | --- | --- |
 | `tofu/bootstrap` | GitHub OIDC provider, deploy and plan roles, the permissions boundary for CI-created roles, the operator policy | An account admin, once |
-| `tofu/shared` | ECS cluster, security groups, EFS, data bucket, ECR repository, secrets, alert topic | The `Deploy shared` workflow |
+| `tofu/shared` | ECS cluster, security groups, EFS, data bucket, ECR repository, secrets, alert topic, CloudFront | The `Deploy shared` workflow |
 | `tofu/country` | Per country: EFS access points, execution, task and scheduler roles, task definition, schedule, log group, alarms | The `Deploy country` workflow |
 | `tofu/countries/*.tfvars` | Size and settings per country | |
 | `wrapper/` | Dockerfile, task script, S3 helper, image smoke test, tests | |
 | `scripts/publish-static.sh` | Packages a TITO release's static data into S3 | The `Publish static data` workflow |
+| `site/` | Status and map viewer, a static page with its unit tests | The `Publish site` workflow, on changes to `main` |
+| `notebooks/tito_outputs.ipynb` | Colab notebook that checks a cycle and draws its maps | |
 
 State lives in one S3 bucket, with the keys `tito/bootstrap.tfstate`, `tito/shared.tfstate` and `tito/country-<country>.tfstate`.
 
@@ -93,6 +95,8 @@ Tests run on every pull request: `python3 -m unittest discover -s wrapper/tests`
 - **Rerun a cycle or run a hindcast:** start the country's task definition from the ECS console or CLI. For a hindcast, override the container command, for example `hindcast "2026-07-22 00:00" "2026-07-22 06:00"`; the wrapper adds `--regions`.
 - **Pause a country:** disable its schedule, `tito-<country>`. The next deploy re-enables it unless `schedule_enabled = false` is set in the tfvars.
 - **Logs:** CloudWatch log group `/tito/<country>`.
+- **Viewer:** the CloudFront root (`site_url` output of `tofu/shared`) shows a status card per country and the latest maps. Outputs are public under `/outputs/<country>/`: `latest.json` names the newest cycle and each cycle's `index.json` lists its files. To try the page locally, serve `site/` and open it with `?base=<CloudFront URL>/outputs`.
+- **Alert emails** come from the `ALERT_EMAILS` repository secret, a JSON list, applied by `Deploy shared`. Each address must confirm the SNS subscription email.
 - **Alarms** go to the `tito-alerts` SNS topic: a failed cycle, a skipped cycle, no successful cycle in 2 hours, the scheduler failing to start a task, and STREAM-Sat running without its saved state.
 
 ## What TITO must keep stable

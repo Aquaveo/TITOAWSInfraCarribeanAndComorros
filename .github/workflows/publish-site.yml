@@ -1,0 +1,40 @@
+name: Publish site
+
+on:
+  push:
+    branches: [main]
+    paths: [site/**]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-site
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: shared
+    env:
+      DATA_BUCKET: ${{ vars.DATA_BUCKET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Upload
+        run: |
+          aws s3 sync site/ "s3://$DATA_BUCKET/site/" --delete \
+            --exclude "tests/*" --exclude "package.json" \
+            --cache-control "no-cache"
+      - name: Invalidate
+        run: |
+          id=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Comment=='TITO outputs'].Id | [0]" --output text)
+          [ "$id" != "None" ] || { echo "TITO distribution not found" >&2; exit 1; }
+          aws cloudfront create-invalidation --distribution-id "$id" --paths "/" "/index.html" "/styles.css" "/js/*"

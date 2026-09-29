@@ -42,3 +42,13 @@ jobs:
       - run: python3 -m py_compile wrapper/tito_s3.py wrapper/smoke_test.py
       - run: python3 -m unittest discover -s wrapper/tests -v
       - run: bash wrapper/tests/test_tito_task.sh
+
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test tests/*.test.js
+        working-directory: site
