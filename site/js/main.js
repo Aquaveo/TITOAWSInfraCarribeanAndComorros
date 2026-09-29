@@ -3,8 +3,10 @@
  */
 
 import { COUNTRIES, FLOOD_DEPTHS_CM, LEGENDS } from "./config.js";
+import { accessElement, accessUrls } from "./access.js";
 import { classifyCells, drawnCount, paintCells } from "./colors.js";
-import { setOptions } from "./dom.js";
+import { element, setOptions } from "./dom.js";
+import { buildTree, filterFiles, folderElement, formatBytes } from "./files.js";
 import { ViewerMap } from "./map.js";
 import { chosenLayer } from "./layers.js";
 import { basinsOf, cycleTime, floodLayers, loadCycle, outputsBase, withoutCountry } from "./outputs.js";
@@ -15,10 +17,12 @@ const REFRESH_MS = 5 * 60 * 1000;
 const base = outputsBase(window.location);
 const form = document.getElementById("controls");
 const info = document.getElementById("info");
+const filter = document.getElementById("file-filter");
 const viewer = new ViewerMap(document.getElementById("map"));
 const cycles = new Map();
 let drawToken = 0;
 let fittedKey = "";
+let filesCycle = null;
 
 /**
  * Reload every country's card and the time stamp under the board.
@@ -104,7 +108,32 @@ async function drawLayer(current) {
   viewer.setLegend(legend, layer.note);
   const shown = drawnCount(classes);
   const when = cycleTime(cycle.latest.cycle).toISOString().slice(0, 16).replace("T", " ");
-  info.textContent = `Cycle ${when} UTC · ${layer.path.split("/").pop()} · ${shown.toLocaleString("en")} cells shown`;
+  const open = element("a", "action", "open file");
+  open.href = `${cycle.root}/${layer.path}`;
+  info.replaceChildren(`Cycle ${when} UTC · ${layer.path.split("/").pop()} · ${shown.toLocaleString("en")} cells shown `, open);
+}
+
+/**
+ * Fill the data access box for the selected country's cycle.
+ * @param {{latest: object}} cycle
+ */
+function showAccess(cycle) {
+  const country = form.country.value;
+  document.getElementById("access").replaceChildren(accessElement(accessUrls(base, country, cycle.latest.cycle), country));
+}
+
+/**
+ * Show a cycle's file tree, narrowed by the filter box.
+ * @param {{files: object[], root: string}} cycle
+ */
+function showFiles(cycle) {
+  filesCycle = cycle;
+  const text = filter.value;
+  const tree = buildTree(filterFiles(cycle.files, text));
+  const note = text.trim() ? ` matching "${text.trim()}"` : "";
+  const noun = tree.count === 1 ? "file" : "files";
+  document.getElementById("files-summary").textContent = `${tree.count.toLocaleString("en")} ${noun}${note}, ${formatBytes(tree.size)}`;
+  document.getElementById("files").replaceChildren(folderElement(tree, cycle.root, Boolean(note)));
 }
 
 /**
@@ -125,6 +154,8 @@ async function changeCountry() {
     const cycle = await countryCycle(country);
     if (country !== form.country.value) return;
     fillCycleOptions(cycle);
+    showAccess(cycle);
+    showFiles(cycle);
   } catch (error) {
     if (country === form.country.value) showError(error);
     return;
@@ -149,6 +180,7 @@ function start() {
   setOptions(form.country, COUNTRIES.map((c) => ({ value: c.key, label: c.name })));
   setOptions(form.depth, FLOOD_DEPTHS_CM.map((d) => ({ value: String(d), label: `${d} cm` })));
   form.country.addEventListener("change", changeCountry);
+  filter.addEventListener("input", () => filesCycle && showFiles(filesCycle));
   form.addEventListener("change", (event) => {
     if (event.target.name === "country") return;
     toggleControls();

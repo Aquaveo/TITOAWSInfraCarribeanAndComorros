@@ -30,3 +30,19 @@ export function setOptions(select, options) {
   }));
   if (options.some((o) => o.value === previous)) select.value = previous;
 }
+
+/**
+ * A button that copies a URL and says so briefly.
+ * @param {string} url
+ * @returns {HTMLButtonElement}
+ */
+export function copyButton(url) {
+  const button = element("button", "action", "copy URL");
+  button.type = "button";
+  button.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(url);
+    button.textContent = "copied";
+    setTimeout(() => { button.textContent = "copy URL"; }, 1500);
+  });
+  return button;
+}
