@@ -1,6 +1,6 @@
 country          = "barbados"
 tito_region      = "Barbados"
-tito_version     = "41c82c8b8de768e6c4694a3611bf85517858c0e7"
+tito_version     = "36f2edb84f32a299467df84edea64f79fae26ad6"
 data_version     = "11aae1b32f66"
 cpu              = 8192 # 50 StormLab members, unmeasured
 memory           = 32768
