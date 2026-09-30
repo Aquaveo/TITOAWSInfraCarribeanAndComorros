@@ -35,3 +35,12 @@ test("missing rasters leave no path and explain why", () => {
   assert.equal(flood.path, undefined);
   assert.match(flood.empty, /No flood site/);
 });
+
+test("impact offers only sites with IBF results", async () => {
+  const { siteChoices } = await import("../js/layers.js");
+  const paths = [...PATHS,
+    "haiti_90m/ibf/Haiti_Gris/ibf_admin.20260929.170000.geojson",
+    "haiti_90m/ibf/Haiti_Gris/ibf_summary.20260929.170000.json"];
+  assert.deepEqual(siteChoices(paths, "impact"), [{ value: "Haiti_Gris", label: "Gris" }]);
+  assert.deepEqual(siteChoices(paths, "flood").map((c) => c.value), ["Haiti_Gris", "Haiti_LaQuinte"]);
+});

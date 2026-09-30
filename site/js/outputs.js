@@ -138,6 +138,26 @@ export function floodPath(paths, layer, depthCm) {
   return paths.find((p) => p.startsWith(prefix));
 }
 
+const IBF_FILE = /^(.+\/ibf\/([^/]+))\/ibf_(admin|summary)\.[\d.]+\.(geojson|json)$/;
+
+/**
+ * Sites with impact results: each needs its admin GeoJSON and summary.
+ * @param {string[]} paths
+ * @returns {{id: string, label: string, admin: string, summary: string}[]}
+ */
+export function ibfSites(paths) {
+  const sites = new Map();
+  for (const path of paths) {
+    const match = path.match(IBF_FILE);
+    if (!match) continue;
+    const [, , id, kind] = match;
+    const site = sites.get(id) || { id, label: withoutCountry(id) };
+    site[kind] = path;
+    sites.set(id, site);
+  }
+  return [...sites.values()].filter((s) => s.admin && s.summary).sort((a, b) => a.label.localeCompare(b.label));
+}
+
 /**
  * Paths of every site's pf_summary.json, triggered or quiet.
  * @param {string[]} paths

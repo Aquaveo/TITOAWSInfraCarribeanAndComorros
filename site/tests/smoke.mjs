@@ -99,13 +99,15 @@ async function check(evaluate) {
   const card = await waitFor(evaluate, 'document.querySelector("#status .card")?.textContent', "status cards");
   if (!card.includes("1 of 1 flood sites triggered")) throw new Error(`Guatemala card: ${card}`);
   await waitFor(evaluate, 'document.getElementById("info").textContent.includes("qpeaccum") && document.getElementById("info").textContent.includes(" 7 cells shown")', "rainfall map with 7 cells");
-  await waitFor(evaluate, 'document.getElementById("files-summary").textContent.startsWith("3 files")', "file tree with 3 files");
+  await waitFor(evaluate, 'document.getElementById("files-summary").textContent.startsWith("5 files")', "file tree with 5 files");
   const access = await evaluate('document.getElementById("access").textContent');
   if (!access.includes("/outputs/guatemala/latest.json")) throw new Error(`data access box: ${access}`);
   await evaluate('(() => { const f = document.getElementById("file-filter"); f.value = "prob_depth"; f.dispatchEvent(new Event("input")); })()');
   await waitFor(evaluate, 'document.getElementById("files-summary").textContent.startsWith("1 file matching") && [...document.querySelectorAll("#files a")].some((a) => a.href.endsWith("prob_depth_ge_10cm_overbank.20260101.000000.tif"))', "filtered tree with the flood raster link");
   await evaluate('(() => { const f = document.getElementById("controls"); f.product.value = "flood"; f.product.dispatchEvent(new Event("change", { bubbles: true })); })()');
   await waitFor(evaluate, 'document.getElementById("info").textContent.includes("prob_depth_ge_10cm") && document.getElementById("info").textContent.includes(" 5 cells shown")', "flood map with 5 cells");
+  await evaluate('(() => { const f = document.getElementById("controls"); f.product.value = "impact"; f.product.dispatchEvent(new Event("change", { bubbles: true })); })()');
+  await waitFor(evaluate, 'document.getElementById("info").textContent.startsWith("Buildings at risk: 1 high, 2 medium, 5 low. People at low risk or worse: 42.") && document.querySelectorAll("path.leaflet-interactive").length === 1', "impact view with one municipality");
 }
 
 const { server, port } = await serve();
@@ -115,7 +117,7 @@ try {
   const page = await openPage(devtools, `http://127.0.0.1:${port}/`);
   await check(page.evaluate);
   page.close();
-  console.log("site smoke test ok: status board, rainfall and flood maps, file tree");
+  console.log("site smoke test ok: status board, rainfall, flood and impact maps, file tree");
 } catch (error) {
   failed = true;
   console.error(`site smoke test failed: ${error.message}`);

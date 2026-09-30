@@ -17,6 +17,7 @@ export class ViewerMap {
     this.map = L.map(container, { zoomSnap: 0.5 }).setView([15, -75], 4);
     L.tileLayer(OSM_TILES, { maxZoom: 18, attribution: OSM_CREDIT }).addTo(this.map);
     this.overlay = null;
+    this.features = null;
     this.legend = L.control({ position: "bottomleft" });
     this.legend.onAdd = () => element("div", "legend");
     this.legend.addTo(this.map);
@@ -38,6 +39,31 @@ export class ViewerMap {
   clear() {
     if (this.overlay) this.overlay.remove();
     this.overlay = null;
+  }
+
+  /**
+   * Replace the vector layer with GeoJSON features coloured by their
+   * risk_color property, each with a popup.
+   * @param {object} geojson FeatureCollection in WGS84
+   * @param {(properties: object) => HTMLElement} popup
+   * @param {boolean} fit zoom to the features
+   */
+  showFeatures(geojson, popup, fit) {
+    this.clearFeatures();
+    this.features = L.geoJSON(geojson, {
+      style: (feature) => {
+        const color = feature.properties.risk_color || "#555555";
+        return { color, weight: 2, fillColor: color, fillOpacity: 0.3 };
+      },
+      onEachFeature: (feature, layer) => layer.bindPopup(() => popup(feature.properties)),
+    }).addTo(this.map);
+    if (fit) this.map.fitBounds(this.features.getBounds(), { padding: [16, 16] });
+  }
+
+  /** Remove the vector layer, if any. */
+  clearFeatures() {
+    if (this.features) this.features.remove();
+    this.features = null;
   }
 
   /**
