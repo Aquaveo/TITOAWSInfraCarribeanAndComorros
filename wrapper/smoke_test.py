@@ -10,7 +10,7 @@ import sys
 MODULES = [
     "numpy", "scipy", "pandas", "xarray", "netCDF4", "h5py", "rasterio", "rioxarray",
     "pyproj", "shapely", "pysteps", "zarr", "boto3", "cfgrib", "eccodes", "herbie",
-    "matplotlib", "tifffile", "osgeo.gdal",
+    "matplotlib", "tifffile", "osgeo.gdal", "pyarrow",
 ]
 TOOLS = ["bash", "flock", "timeout", "stat", "grep"]
 
@@ -35,6 +35,13 @@ else:
     run = subprocess.run([ef5], capture_output=True, text=True, timeout=60)
     if "Ensemble Framework" not in run.stdout + run.stderr:
         failed.append("ef5 did not start")
+
+try:
+    from osgeo import gdal
+    if gdal.GetDriverByName("COG") is None:
+        failed.append(f"GDAL {gdal.__version__} has no COG driver")
+except Exception as exc:
+    failed.append(f"COG driver check: {exc}")
 
 for path in ["/docker-entrypoint.sh", "/app/orchestrator.py", "/opt/tito-task/tito-task.sh"]:
     if not os.path.exists(path):
