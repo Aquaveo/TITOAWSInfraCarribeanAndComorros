@@ -1,9 +1,9 @@
 country          = "comoros"
 tito_region      = "Comoros"
-tito_version     = "9739b7ba8609e9cbad40e764b29c37cccd6e7126"
+tito_version     = "ad6e98be21731e183211c9380e7a83b0b7ba6271"
 data_version     = "0c4be51ff6df"
 cpu              = 4096  # AHWA estimate, benchmark first
-memory           = 30720 # OOM at 16 GiB, 30m summaries
+memory           = 16384 # streamed summaries peak 1.8 GB
 ef5_max_workers  = 4
 uses_streamsat   = true
 streamsat_domain = "comoros"

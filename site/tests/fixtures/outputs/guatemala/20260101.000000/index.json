@@ -3,11 +3,11 @@
  "files": [
   {
    "path": "guatemala_900m/summary/qpeaccum_forecast_median.20260101.000000.tif",
-   "size": 420
+   "size": 1708
   },
   {
    "path": "guatemala_90m/fim/stream_sat_stormlab/Guatemala_Test/combined_overbank/prob_depth_ge_10cm_overbank.20260101.000000.tif",
-   "size": 387
+   "size": 1680
   },
   {
    "path": "guatemala_90m/fim/stream_sat_stormlab/Guatemala_Test/pf_summary.json",
