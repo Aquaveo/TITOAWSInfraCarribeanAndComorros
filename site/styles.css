@@ -202,3 +202,8 @@ footer { padding-bottom: 24px; font-size: 0.85rem; }
 @media (max-width: 600px) {
   .access dl { grid-template-columns: 1fr; }
 }
+
+.popup { font-size: 0.85rem; min-width: 190px; }
+.popup strong { display: block; margin-bottom: 4px; }
+.popup .row { display: flex; justify-content: space-between; gap: 12px; }
+.popup .label { color: #5b6675; }

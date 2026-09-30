@@ -2,14 +2,15 @@
  * Page entry point: wires the status board, the controls and the map.
  */
 
-import { COUNTRIES, FLOOD_DEPTHS_CM, LEGENDS } from "./config.js";
+import { COUNTRIES, FLOOD_DEPTHS_CM, IMPACT_LEGEND, LEGENDS } from "./config.js";
 import { accessElement, accessUrls } from "./access.js";
 import { classifyCells, drawnCount, paintCells } from "./colors.js";
 import { element, setOptions } from "./dom.js";
 import { buildTree, filterFiles, folderElement, formatBytes } from "./files.js";
 import { ViewerMap } from "./map.js";
-import { chosenLayer } from "./layers.js";
-import { basinsOf, cycleTime, floodLayers, loadCycle, outputsBase, withoutCountry } from "./outputs.js";
+import { popupElement, riskSummary } from "./impact.js";
+import { chosenLayer, siteChoices } from "./layers.js";
+import { basinsOf, cycleTime, fetchJson, loadCycle, outputsBase, withoutCountry } from "./outputs.js";
 import { loadRaster, rasterBounds } from "./raster.js";
 import { loadStatus, statusCard } from "./status.js";
 
@@ -52,21 +53,21 @@ function countryCycle(country) {
 }
 
 /**
- * Offer the grids and flood maps that exist in this cycle.
+ * Offer the grids and sites that exist in this cycle.
  * @param {{paths: string[]}} cycle
  */
 function fillCycleOptions({ paths }) {
   setOptions(form.basin, basinsOf(paths).map((b) => ({ value: b, label: withoutCountry(b) })));
-  setOptions(form.site, floodLayers(paths).map((l) => ({ value: l.id, label: l.label })));
+  setOptions(form.site, siteChoices(paths, form.product.value));
 }
 
 /**
  * Show only the controls that apply to the chosen product.
  */
 function toggleControls() {
-  const flood = form.product.value === "flood";
-  for (const name of ["basin", "stat", "period"]) form[name].closest("label").hidden = flood;
-  for (const name of ["site", "depth"]) form[name].closest("label").hidden = !flood;
+  const bySite = ["flood", "impact"].includes(form.product.value);
+  for (const name of ["basin", "stat", "period"]) form[name].closest("label").hidden = bySite;
+  for (const name of ["site", "depth"]) form[name].closest("label").hidden = !bySite;
 }
 
 /**
@@ -84,33 +85,95 @@ async function draw() {
 }
 
 /**
- * Load, colour and show the chosen raster, stopping once superseded.
+ * Load and show the chosen product, stopping once superseded.
  * @param {() => boolean} current whether this draw is still the newest
  */
 async function drawLayer(current) {
   const cycle = await countryCycle(form.country.value);
   if (!current()) return;
-  const legend = LEGENDS[form.product.value];
   const layer = chosenLayer(cycle.paths, Object.fromEntries(new FormData(form)));
+  if (form.product.value === "impact") {
+    await drawImpact(cycle, layer, current);
+    return;
+  }
+  viewer.clearFeatures();
   if (!layer.path) {
-    viewer.clear();
-    viewer.setLegend(null);
-    info.textContent = layer.empty;
+    showNothing(layer.empty);
     return;
   }
   info.textContent = "Loading…";
   const raster = await loadRaster(`${cycle.root}/${layer.path}`);
   if (!current()) return;
-  const bounds = rasterBounds(raster.bbox, raster.epsg);
-  const classes = classifyCells(raster.values, legend.breaks, raster.nodata);
-  viewer.show(paintCells(classes, raster.width, raster.height, legend.colors), bounds, layer.key !== fittedKey);
+  const legend = LEGENDS[form.product.value];
+  const shown = showRaster(raster, legend, layer.key !== fittedKey);
   fittedKey = layer.key;
   viewer.setLegend(legend, layer.note);
-  const shown = drawnCount(classes);
   const when = cycleTime(cycle.latest.cycle).toISOString().slice(0, 16).replace("T", " ");
-  const open = element("a", "action", "open file");
-  open.href = `${cycle.root}/${layer.path}`;
-  info.replaceChildren(`Cycle ${when} UTC · ${layer.path.split("/").pop()} · ${shown.toLocaleString("en")} cells shown `, open);
+  info.replaceChildren(`Cycle ${when} UTC · ${layer.path.split("/").pop()} · ${shown.toLocaleString("en")} cells shown `,
+    openLink(`${cycle.root}/${layer.path}`, "open file"));
+}
+
+/**
+ * Show a site's municipal impact over its flood probability raster.
+ * @param {{root: string}} cycle
+ * @param {{path?: string, ibf?: {admin: string, summary: string}, key: string, note: string, empty: string}} layer
+ * @param {() => boolean} current whether this draw is still the newest
+ */
+async function drawImpact(cycle, layer, current) {
+  if (!layer.ibf) {
+    viewer.clearFeatures();
+    showNothing(layer.empty);
+    return;
+  }
+  info.textContent = "Loading…";
+  const [raster, admin, summary] = await Promise.all([
+    layer.path ? loadRaster(`${cycle.root}/${layer.path}`) : null,
+    fetchJson(`${cycle.root}/${layer.ibf.admin}`),
+    fetchJson(`${cycle.root}/${layer.ibf.summary}`),
+  ]);
+  if (!current()) return;
+  const fit = layer.key !== fittedKey;
+  if (raster) showRaster(raster, LEGENDS.flood, false);
+  else viewer.clear();
+  viewer.showFeatures(admin, popupElement, fit);
+  fittedKey = layer.key;
+  viewer.setLegend(IMPACT_LEGEND, layer.note);
+  info.replaceChildren(`${riskSummary(summary)} `, openLink(`${cycle.root}/${layer.ibf.admin}`, "open GeoJSON"));
+}
+
+/**
+ * Colour a raster with its legend and put it on the map.
+ * @param {object} raster result of loadRaster
+ * @param {{breaks: number[], colors: string[]}} legend
+ * @param {boolean} fit zoom to the raster
+ * @returns {number} cells drawn
+ */
+function showRaster(raster, legend, fit) {
+  const classes = classifyCells(raster.values, legend.breaks, raster.nodata);
+  viewer.show(paintCells(classes, raster.width, raster.height, legend.colors), rasterBounds(raster.bbox, raster.epsg), fit);
+  return drawnCount(classes);
+}
+
+/**
+ * Clear the map and explain why nothing is shown.
+ * @param {string} message
+ */
+function showNothing(message) {
+  viewer.clear();
+  viewer.setLegend(null);
+  info.textContent = message;
+}
+
+/**
+ * A small link for the info line.
+ * @param {string} url
+ * @param {string} text
+ * @returns {HTMLElement}
+ */
+function openLink(url, text) {
+  const link = element("a", "action", text);
+  link.href = url;
+  return link;
 }
 
 /**
@@ -181,8 +244,16 @@ function start() {
   setOptions(form.depth, FLOOD_DEPTHS_CM.map((d) => ({ value: String(d), label: `${d} cm` })));
   form.country.addEventListener("change", changeCountry);
   filter.addEventListener("input", () => filesCycle && showFiles(filesCycle));
-  form.addEventListener("change", (event) => {
+  form.addEventListener("change", async (event) => {
     if (event.target.name === "country") return;
+    if (event.target.name === "product") {
+      try {
+        fillCycleOptions(await countryCycle(form.country.value));
+      } catch (error) {
+        showError(error);
+        return;
+      }
+    }
     toggleControls();
     draw();
   });

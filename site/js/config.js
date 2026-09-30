@@ -51,5 +51,17 @@ export const LEGENDS = {
   },
 };
 
+/**
+ * IBF risk levels (risk_class 0-3) with AHWA's colours from
+ * ibf_utils/config.py, for the impact legend.
+ */
+export const IMPACT_LEGEND = {
+  title: "Impact risk level",
+  unit: "IBF risk matrix",
+  breaks: [0, 1, 2, 3, 4],
+  colors: ["#63BE5F", "#FFD500", "#F58220", "#DA291C"],
+  labels: ["Very low", "Low", "Medium", "High"],
+};
+
 /** Depth thresholds, in cm, of the flood probability rasters. */
 export const FLOOD_DEPTHS_CM = [10, 30, 70, 100];

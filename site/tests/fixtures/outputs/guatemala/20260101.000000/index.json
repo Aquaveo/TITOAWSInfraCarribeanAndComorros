@@ -12,6 +12,14 @@
   {
    "path": "guatemala_90m/fim/stream_sat_stormlab/Guatemala_Test/pf_summary.json",
    "size": 70
+  },
+  {
+   "path": "guatemala_90m/ibf/Guatemala_Test/ibf_admin.20260101.000000.geojson",
+   "size": 480
+  },
+  {
+   "path": "guatemala_90m/ibf/Guatemala_Test/ibf_summary.20260101.000000.json",
+   "size": 168
   }
  ]
 }
