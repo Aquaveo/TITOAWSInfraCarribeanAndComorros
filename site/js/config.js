@@ -7,7 +7,8 @@
 export const COUNTRIES = [
   { key: "guatemala", name: "Guatemala" },
   { key: "haiti", name: "Haiti" },
-  { key: "barbados", name: "Barbados" },
+  // Paused at Barbados request
+  // { key: "barbados", name: "Barbados" },
   { key: "antigua", name: "Antigua and Barbuda" },
   { key: "comoros", name: "Comoros" },
 ];
