@@ -61,7 +61,16 @@ jobs:
       - id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Look for the image in ECR
+        id: existing
+        run: |
+          if aws ecr describe-images --repository-name tito --image-ids imageTag="$TAG" >/dev/null 2>&1; then
+            echo "tito:$TAG already in ECR, same wrapper and release"
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build TITO and wrapper images
+        if: steps.existing.outputs.found != 'true'
         env:
           IMAGE: ${{ steps.ecr.outputs.registry }}/tito
         run: |
@@ -70,6 +79,7 @@ jobs:
           docker build --build-arg BASE_IMAGE="tito-base:$TITO_VERSION" -t "$IMAGE:$TAG" wrapper
 
       - name: Smoke test
+        if: steps.existing.outputs.found != 'true'
         env:
           IMAGE: ${{ steps.ecr.outputs.registry }}/tito
         run: |
@@ -77,14 +87,10 @@ jobs:
             "$IMAGE:$TAG" /opt/tito-task/smoke_test.py
 
       - name: Push image
+        if: steps.existing.outputs.found != 'true'
         env:
           IMAGE: ${{ steps.ecr.outputs.registry }}/tito
-        run: |
-          if aws ecr describe-images --repository-name tito --image-ids imageTag="$TAG" >/dev/null 2>&1; then
-            echo "tito:$TAG already in ECR, same wrapper and release"
-          else
-            docker push "$IMAGE:$TAG"
-          fi
+        run: docker push "$IMAGE:$TAG"
 
       - name: Check static data
         env:
