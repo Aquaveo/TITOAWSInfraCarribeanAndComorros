@@ -82,7 +82,7 @@ Change them through a pull request, so the plan shows the exact image and data a
 2. **Publish static data** for the country. It checks out AHWA's repository at `tito_version` with Git LFS and publishes to `static/<country>/<data_version>/`. Versions are immutable; publishing the same label twice is refused.
 3. **Deploy country** for the country.
 
-   The workflow builds AHWA's image from the pinned commit with their own Dockerfile, then the wrapper on top, and runs the smoke test. It pushes the result to ECR as `<country>-<tito_version>-<wrapper rev>`, checks the static data exists, and applies `tofu/country`. The wrapper rev is the git tree hash of `wrapper/`, so a wrapper change always produces a new image.
+   The workflow builds AHWA's image from the pinned commit with their own Dockerfile, then the wrapper on top, and runs the smoke test. It pushes the result to ECR as `<country>-<tito_version>-<wrapper rev>`, checks the static data exists, and applies `tofu/country`. The wrapper rev is the git tree hash of `wrapper/`, so a wrapper change always produces a new image. When ECR already has an image of the same `tito_version`, a wrapper change is built on top of it instead of rebuilding AHWA's image, which takes minutes rather than a full conda solve.
 4. Set `schedule_enabled = true` in the tfvars once the first manual run looks right, and deploy again.
 
 We build AHWA's image ourselves because their release workflow publishes images only for `v*` tags, and the branches have none.
