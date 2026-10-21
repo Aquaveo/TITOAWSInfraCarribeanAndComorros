@@ -14,8 +14,9 @@ EventBridge Scheduler starts one Fargate task per country at hh:05 UTC. The wrap
 4. Checks preconditions: EF5 runs locally, the PPS login is present, and nothing hardcoded overrides the environment. STREAM-Sat state that is missing or stale is logged as `STREAMSAT_COLD_START`.
 5. Runs `operational --regions <Country>`, killed after `cycle_timeout_s` (50 minutes by default) so a hung run cannot hold the lock.
 6. Uploads every cycle folder the task produced to `s3://<data bucket>/outputs/<country>/<cycle>/` (one for an hourly run, several for a hindcast). An hourly run points `latest.json` at its cycle; a hindcast leaves it alone.
+7. Uploads one tar per cycle to `s3://<data bucket>/archive/<country>/<cycle>.tar` as Glacier Instant Retrieval. These are kept 90 days and are not public.
 
-Log markers drive the alarms: `TITO_TASK_FAILED`, `TITO_CYCLE_OK`, `TITO_CYCLE_SKIPPED` and `STREAMSAT_COLD_START`. Scheduler invocations that fail after 3 retries go to a per-country dead-letter queue, which also alarms.
+Log markers drive the alarms: `TITO_TASK_FAILED`, `TITO_CYCLE_OK`, `TITO_CYCLE_SKIPPED`, `TITO_ARCHIVE_FAILED` and `STREAMSAT_COLD_START`. Scheduler invocations that fail after 3 retries go to a per-country dead-letter queue, which also alarms.
 
 What persists between cycles, on EFS, one folder per country:
 
@@ -99,7 +100,13 @@ Tests run on every pull request: `python3 -m unittest discover -s wrapper/tests`
 - **Public data:** base `https://tito.uffis.org/outputs`. `<country>/latest.json` names the newest cycle, `<country>/<cycle>/index.json` lists its files with sizes, and each file is at `<country>/<cycle>/<path>`. Countries: guatemala, haiti, barbados, antigua, comoros. Kept about one day, CORS enabled, no key. `notebooks/tito_outputs.ipynb` checks a cycle and draws its maps.
 - **Viewer domain:** `site_domain` in `tofu/shared/shared.tfvars` (currently `tito.uffis.org`) gets its own Route 53 zone. After the first `Deploy shared`, add the `site_name_servers` output as NS records for that name in the parent zone (`uffis.org`, account 777460178571), then set `site_domain_delegated = true` and deploy again to add the certificate and alias.
 - **Alert emails** come from the `ALERT_EMAILS` repository secret, a JSON list, applied by `Deploy shared`. Each address must confirm the SNS subscription email.
-- **Alarms** go to the `tito-alerts` SNS topic: a failed cycle, a skipped cycle, no successful cycle in 2 hours, the scheduler failing to start a task, and STREAM-Sat running without its saved state.
+- **Alarms** go to the `tito-alerts` SNS topic: a failed cycle, a skipped cycle, no successful cycle in 2 hours, the scheduler failing to start a task, STREAM-Sat running without its saved state, and an archive upload failing.
+- **Restore an archived cycle:** Glacier Instant Retrieval objects download directly, with no restore request.
+
+```bash
+aws s3 cp s3://<data bucket>/archive/guatemala/20261021.000000.tar . --profile <profile_name>
+tar xf 20261021.000000.tar
+```
 
 ## What TITO must keep stable
 

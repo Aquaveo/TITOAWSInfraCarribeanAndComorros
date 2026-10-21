@@ -4,6 +4,8 @@ locals {
     { name = "TITO_S3_BUCKET", value = local.shared.bucket_name },
     { name = "TITO_STATIC_PREFIX", value = local.static_prefix },
     { name = "TITO_OUTPUT_PREFIX", value = local.output_prefix },
+    { name = "TITO_ARCHIVE_STORAGE_CLASS", value = var.archive_storage_class },
+    { name = "TITO_ARCHIVE_PREFIX", value = local.archive_prefix },
     { name = "TITO_USES_STREAMSAT", value = var.uses_streamsat ? "1" : "0" },
     { name = "TITO_STREAMSAT_DOMAIN", value = var.streamsat_domain },
     { name = "STREAM_SAT_STATE_DIR", value = "${local.streamsat}/state" },

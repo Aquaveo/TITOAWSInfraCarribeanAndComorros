@@ -67,6 +67,11 @@ data "aws_iam_policy_document" "task" {
     resources = ["${local.shared.bucket_arn}/${local.output_prefix}/*"]
   }
   statement {
+    sid       = "WriteArchive"
+    actions   = ["s3:PutObject"]
+    resources = ["${local.shared.bucket_arn}/${local.archive_prefix}/*"]
+  }
+  statement {
     sid       = "MountOwnAccessPoints"
     actions   = ["elasticfilesystem:ClientMount", "elasticfilesystem:ClientWrite", "elasticfilesystem:ClientRootAccess"]
     resources = [local.shared.efs_arn]

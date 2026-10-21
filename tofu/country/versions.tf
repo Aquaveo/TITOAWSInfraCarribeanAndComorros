@@ -49,6 +49,7 @@ locals {
 
   image_tag = "${var.country}-${var.tito_version}-${var.wrapper_rev}"
 
-  static_prefix = "static/${var.country}/${var.data_version}"
-  output_prefix = "outputs/${var.country}"
+  static_prefix  = "static/${var.country}/${var.data_version}"
+  output_prefix  = "outputs/${var.country}"
+  archive_prefix = "archive/${var.country}"
 }

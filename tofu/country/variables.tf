@@ -112,3 +112,13 @@ variable "log_retention_days" {
   type    = number
   default = 30
 }
+
+variable "archive_storage_class" {
+  type        = string
+  default     = "GLACIER_IR"
+  description = "S3 storage class for the per-cycle tar archives."
+  validation {
+    condition     = contains(["GLACIER_IR", "DEEP_ARCHIVE", "STANDARD"], var.archive_storage_class)
+    error_message = "Use GLACIER_IR, DEEP_ARCHIVE or STANDARD."
+  }
+}

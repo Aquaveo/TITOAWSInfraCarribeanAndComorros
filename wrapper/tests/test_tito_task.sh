@@ -57,7 +57,7 @@ setup
 run_task
 expect "normal cycle succeeds" '[ "$RC" -eq 0 ] && grep -q TITO_CYCLE_OK <<<"$OUT"'
 expect "runs operational" 'grep -qx "operational --regions Guatemala" "$T/entrypoint.log"'
-expect "fetches then publishes" '[ "$(cut -d" " -f2 "$T/python.log" | tr "\n" " ")" = "fetch-static publish-outputs " ]'
+expect "fetches then publishes" '[ "$(cut -d" " -f2 "$T/python.log" | tr "\n" " ")" = "fetch-static publish-outputs archive-outputs " ]'
 expect "hourly run updates latest" 'grep -q "publish-outputs latest=1" "$T/python.log"'
 rm -rf "$T"
 

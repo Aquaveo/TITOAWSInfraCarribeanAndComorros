@@ -90,5 +90,6 @@ rc=$?
 [ "$rc" -eq 0 ] || fail "orchestrator exit $rc"
 
 "$PY" "$HERE/tito_s3.py" publish-outputs || fail "output upload"
+"$PY" "$HERE/tito_s3.py" archive-outputs || echo "TITO_ARCHIVE_FAILED $(date -u +%FT%TZ)"
 
 echo "TITO_CYCLE_OK $(date -u +%FT%TZ)"

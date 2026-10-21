@@ -5,6 +5,8 @@ import json
 import os
 import re
 import sys
+import tarfile
+import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
@@ -106,6 +108,19 @@ def publish_outputs():
     print(f"latest.json -> {cycle.name}")
 
 
+def archive_outputs():
+    prefix = os.environ["TITO_ARCHIVE_PREFIX"].strip("/")
+    storage = os.environ.get("TITO_ARCHIVE_STORAGE_CLASS", "GLACIER_IR")
+    for cycle in cycles():
+        key = f"{prefix}/{cycle.name}.tar"
+        with tempfile.NamedTemporaryFile(suffix=".tar") as tmp:
+            with tarfile.open(fileobj=tmp, mode="w") as tar:
+                tar.add(cycle, arcname=cycle.name)
+            tmp.flush()
+            s3.upload_file(tmp.name, BUCKET, key, ExtraArgs={"StorageClass": storage})
+        print(f"archive ok: s3://{BUCKET}/{key} ({storage})")
+
+
 def put_json(key, doc):
     s3.put_object(
         Bucket=BUCKET,
@@ -116,7 +131,8 @@ def put_json(key, doc):
 
 
 if __name__ == "__main__":
-    commands = {"fetch-static": fetch_static, "publish-outputs": publish_outputs}
+    commands = {"fetch-static": fetch_static, "publish-outputs": publish_outputs,
+                "archive-outputs": archive_outputs}
     if len(sys.argv) != 2 or sys.argv[1] not in commands:
         sys.exit(f"usage: tito_s3.py {'|'.join(commands)}")
     commands[sys.argv[1]]()

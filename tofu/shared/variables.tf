@@ -25,6 +25,12 @@ variable "outputs_expiration_days" {
   description = "Days cycle outputs stay in S3. Lifecycle rules count whole days."
 }
 
+variable "archive_expiration_days" {
+  type        = number
+  default     = 90
+  description = "Days cycle archives stay in S3. Glacier Instant Retrieval bills at least 90."
+}
+
 variable "alert_emails" {
   type        = list(string)
   default     = []
