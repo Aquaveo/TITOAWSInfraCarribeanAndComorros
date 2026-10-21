@@ -5,6 +5,7 @@ import io
 import json
 import os
 import sys
+import tarfile
 import tempfile
 import types
 import unittest
@@ -24,6 +25,8 @@ class FakeS3:
         self.put = {}
         self.order = []
         self.downloads = 0
+        self.extra = {}
+        self.tars = {}
 
     def get_object(self, Bucket, Key):
         return {"Body": io.BytesIO(self.objects[Key])}
@@ -32,9 +35,13 @@ class FakeS3:
         self.downloads += 1
         Path(Filename).write_bytes(self.objects[Key])
 
-    def upload_file(self, Filename, Bucket, Key):
+    def upload_file(self, Filename, Bucket, Key, ExtraArgs=None):
         self.uploaded.append(Key)
         self.order.append(Key)
+        self.extra[Key] = ExtraArgs
+        if Key.endswith(".tar"):
+            with tarfile.open(Filename) as tar:
+                self.tars[Key] = sorted(m.name for m in tar.getmembers() if m.isfile())
 
     def put_object(self, Bucket, Key, Body, ContentType):
         self.put[Key] = json.loads(Body)
@@ -52,7 +59,15 @@ class TitoS3Case(unittest.TestCase):
         tito_s3.APP = self.app
         os.environ["TITO_STATIC_PREFIX"] = "static/guatemala/v1"
         os.environ["TITO_OUTPUT_PREFIX"] = "outputs/guatemala"
+        os.environ["TITO_ARCHIVE_PREFIX"] = "archive/guatemala"
+        os.environ.pop("TITO_ARCHIVE_STORAGE_CLASS", None)
         os.environ.pop("TITO_UPDATE_LATEST", None)
+
+    def make_cycle(self, name, files):
+        for rel in files:
+            path = self.app / "outputs" / name / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("x")
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -97,12 +112,6 @@ class FetchStatic(TitoS3Case):
 
 
 class PublishOutputs(TitoS3Case):
-    def make_cycle(self, name, files):
-        for rel in files:
-            path = self.app / "outputs" / name / rel
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text("x")
-
     def test_uploads_every_cycle_and_points_latest_at_newest(self):
         self.make_cycle("20260927.170000", ["guatemala_90m/a.tif"])
         self.make_cycle("20260927.180000", ["guatemala_90m/b.tif"])
@@ -147,6 +156,30 @@ class PublishOutputs(TitoS3Case):
         tito_s3.s3 = FakeS3()
         with self.assertRaises(SystemExit):
             tito_s3.publish_outputs()
+
+
+class ArchiveOutputs(TitoS3Case):
+    def test_one_tar_per_cycle_in_glacier_ir(self):
+        self.make_cycle("20260927.170000", ["guatemala_90m/a.tif", "guatemala_90m/summary/s.tif"])
+        self.make_cycle("20260927.180000", ["guatemala_90m/b.tif"])
+        tito_s3.s3 = FakeS3()
+        tito_s3.archive_outputs()
+        key = "archive/guatemala/20260927.170000.tar"
+        self.assertEqual(sorted(tito_s3.s3.uploaded),
+                         [key, "archive/guatemala/20260927.180000.tar"])
+        self.assertEqual(tito_s3.s3.tars[key], [
+            "20260927.170000/guatemala_90m/a.tif",
+            "20260927.170000/guatemala_90m/summary/s.tif",
+        ])
+        self.assertEqual(tito_s3.s3.extra[key], {"StorageClass": "GLACIER_IR"})
+
+    def test_storage_class_from_env(self):
+        self.make_cycle("20260927.170000", ["guatemala_90m/a.tif"])
+        os.environ["TITO_ARCHIVE_STORAGE_CLASS"] = "DEEP_ARCHIVE"
+        tito_s3.s3 = FakeS3()
+        tito_s3.archive_outputs()
+        self.assertEqual(tito_s3.s3.extra["archive/guatemala/20260927.170000.tar"],
+                         {"StorageClass": "DEEP_ARCHIVE"})
 
 
 if __name__ == "__main__":

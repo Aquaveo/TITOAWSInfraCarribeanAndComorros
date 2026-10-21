@@ -6,6 +6,7 @@ locals {
       failed  = "\"TITO_TASK_FAILED\""
       cycleok = "\"TITO_CYCLE_OK\""
       skipped = "\"TITO_CYCLE_SKIPPED\""
+      archive = "\"TITO_ARCHIVE_FAILED\""
     },
     var.uses_streamsat ? { coldstart = "?\"STREAMSAT_COLD_START\" ?\"noise state COLD START\"" } : {},
   )
@@ -23,6 +24,21 @@ resource "aws_cloudwatch_log_metric_filter" "marker" {
     value         = "1"
     default_value = "0"
   }
+}
+
+resource "aws_cloudwatch_metric_alarm" "archive" {
+  alarm_name          = "${local.name}-archive-failed"
+  alarm_description   = "Archiving a ${var.tito_region} cycle failed."
+  namespace           = "TITO"
+  metric_name         = "archive-${var.country}"
+  statistic           = "Sum"
+  period              = 3600
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [local.shared.alerts_topic_arn]
+  depends_on          = [aws_cloudwatch_log_metric_filter.marker]
 }
 
 resource "aws_cloudwatch_metric_alarm" "failed" {

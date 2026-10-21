@@ -126,6 +126,17 @@ resource "aws_s3_bucket_lifecycle_configuration" "data" {
   }
 
   rule {
+    id     = "expire-archive"
+    status = "Enabled"
+    filter {
+      prefix = "archive/"
+    }
+    expiration {
+      days = var.archive_expiration_days
+    }
+  }
+
+  rule {
     id     = "abort-incomplete-uploads"
     status = "Enabled"
     filter {}
