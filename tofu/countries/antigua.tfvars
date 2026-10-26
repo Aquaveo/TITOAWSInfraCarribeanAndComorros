@@ -1,6 +1,6 @@
 country          = "antigua"
 tito_region      = "Antigua"
-tito_version     = "e279e8d795d6b9d6f9462ec863aebfa1065b5bdf"
+tito_version     = "8f9a39aadca47525f73a348c6eb7f57af69af139"
 data_version     = "1e2d75b29f91"
 cpu              = 4096 # AHWA estimate, benchmark first
 memory           = 16384
