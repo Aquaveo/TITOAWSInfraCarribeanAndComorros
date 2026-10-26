@@ -1,7 +1,7 @@
 country          = "comoros"
 tito_region      = "Comoros"
-tito_version     = "ad6e98be21731e183211c9380e7a83b0b7ba6271"
-data_version     = "0c4be51ff6df"
+tito_version     = "246b5d5acac322b66753c1f04b5f577cef5b388a"
+data_version     = "246b5d5acac3"
 cpu              = 4096  # AHWA estimate, benchmark first
 memory           = 16384 # streamed summaries peak 1.8 GB
 ef5_max_workers  = 4
