@@ -40,7 +40,6 @@ Everything else is written to the task's own disk and discarded at the end of th
 | `wrapper/` | Dockerfile, task script, S3 helper, image smoke test, tests | |
 | `scripts/publish-static.sh` | Packages a TITO release's static data into S3 | The `Publish static data` workflow |
 | `site/` | Status and map viewer, a static page with its unit tests | The `Publish site` workflow, on changes to `main` |
-| `notebooks/tito_outputs.ipynb` | Colab notebook that checks a cycle and draws its maps | |
 
 State lives in one S3 bucket, with the keys `tito/bootstrap.tfstate`, `tito/shared.tfstate` and `tito/country-<country>.tfstate`.
 
@@ -97,7 +96,7 @@ Tests run on every pull request: `python3 -m unittest discover -s wrapper/tests`
 - **Pause a country:** disable its schedule, `tito-<country>`. The next deploy re-enables it unless `schedule_enabled = false` is set in the tfvars.
 - **Logs:** CloudWatch log group `/tito/<country>`.
 - **Viewer:** https://tito.uffis.org/ shows a status card per country, the latest maps, and a file browser with each file's public URL. Tests: `node --test tests/*.test.js` and `node tests/smoke.mjs` in `site/`. To try the page locally, serve `site/` on localhost and open it with `?base=https://tito.uffis.org/outputs`.
-- **Public data:** base `https://tito.uffis.org/outputs`. `<country>/latest.json` names the newest cycle, `<country>/<cycle>/index.json` lists its files with sizes, and each file is at `<country>/<cycle>/<path>`. Countries: guatemala, haiti, barbados, antigua, comoros. Kept about one day, CORS enabled, no key. `notebooks/tito_outputs.ipynb` checks a cycle and draws its maps.
+- **Public data:** base `https://tito.uffis.org/outputs`. `<country>/latest.json` names the newest cycle, `<country>/<cycle>/index.json` lists its files with sizes, and each file is at `<country>/<cycle>/<path>`. Countries: guatemala, haiti, barbados, antigua, comoros. Kept about one day, CORS enabled, no key.
 - **Viewer domain:** `site_domain` in `tofu/shared/shared.tfvars` (currently `tito.uffis.org`) gets its own Route 53 zone. After the first `Deploy shared`, add the `site_name_servers` output as NS records for that name in the parent zone (`uffis.org`, account 777460178571), then set `site_domain_delegated = true` and deploy again to add the certificate and alias.
 - **Alert emails** come from the `ALERT_EMAILS` repository secret, a JSON list, applied by `Deploy shared`. Each address must confirm the SNS subscription email.
 - **Alarms** go to the `tito-alerts` SNS topic: a failed cycle, a skipped cycle, no successful cycle in 2 hours, the scheduler failing to start a task, STREAM-Sat running without its saved state, and an archive upload failing.
