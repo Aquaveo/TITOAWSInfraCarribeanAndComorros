@@ -121,6 +121,8 @@ The wrapper depends on this contract with the TITO repository:
 
 **PPS credentials (temporary workaround).** The STREAM-Sat YAML files still hardcode a PPS email that overrides the environment. Until AHWA's fix lands, `pps_yaml_override = true` makes the wrapper blank that one value in the task's own copy of the YAML, so STREAM-Sat uses `IMERG_PPS_EMAIL` from Secrets Manager. Nothing in AHWA's repository or image changes, and only an empty value is written. Once the YAML ships with an empty value, the step finds nothing to change and does nothing. Set `pps_yaml_override = false` then to remove it. With the workaround off, the strict precondition stops the task instead.
 
+**Conda solve (temporary workaround).** Conda's solve of the unpinned `tito_env.yml` hangs for over an hour since mid-October. Until AHWA's Dockerfile stops solving at build time, the deploy builds their code with `wrapper/tito-base.Dockerfile`: a copy of their Dockerfile where pixi solves the environment and conda installs that exact list. Nothing in AHWA's repository changes. The copy records which version of their Dockerfile it came from, and the deploy stops if theirs changes. Delete it once their fix lands.
+
 Also pending before enabling countries:
 
 - **HSAF FTP credentials for Comoros**, stored in `tito/hsaf-ftp`. Until they arrive, Comoros can be deployed but not scheduled.

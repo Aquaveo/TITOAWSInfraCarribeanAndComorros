@@ -1,0 +1,104 @@
+# AHWA's Dockerfile with the conda solve done by pixi. Temporary: delete this
+# file once AHWA's own Dockerfile stops solving at build time.
+# upstream-blob: 31dee81fc8bdccee3cb3be534686883727bd7f4f
+# (git blob of AHWA's Dockerfile this copy was made from; the deploy fails if
+# theirs changes, so the copy never drifts silently)
+
+# ============================================================================
+# TITO — Real-time Flash Flood Forecasting System
+# Slim Docker image (no PyTorch/CUDA; ops = STREAM-Sat + StormLab + EF5)
+# ============================================================================
+# Build:
+#   docker build -t tito:latest .
+#
+# Run (operational):
+#   docker run --rm \
+#     -v /var/run/docker.sock:/var/run/docker.sock \
+#     -v $(pwd)/EF5_conf:/app/EF5_conf \
+#     -v $(pwd)/outputs:/app/outputs \
+#     tito:latest
+# ============================================================================
+
+# Stage 1 (ours): conda's solve of the unpinned tito_env.yml hangs for over
+# an hour. pixi solves it in seconds; conda then installs that exact list.
+FROM ghcr.io/prefix-dev/pixi:0.48.2 AS solve
+WORKDIR /solve
+COPY tito_env.yml .
+RUN pixi init --import tito_env.yml --platform linux-64 . \
+    && pixi lock \
+    && pixi workspace export conda-explicit-spec --frozen --ignore-pypi-errors out \
+    && awk '/- pip:/{p=1; next} p && /^ *- /{sub(/^ *- /, ""); print}' tito_env.yml > out/requirements.txt
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+
+# System deps:
+#   - docker.io CLI → spawn sibling ef5-container via docker.sock
+#   - libtiff5 / libgeotiff5 / libgomp1 → required by EF5/bin/ef5 when
+#     EF5_RUNTIME=local (Apptainer path or in-container glibc binary).
+#     Without these, EF5 exits 127: "libtiff.so.5: cannot open shared object file"
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    curl \
+    ca-certificates \
+    git \
+    docker.io \
+    libtiff5 \
+    libgeotiff5 \
+    libgomp1 \
+    zlib1g \
+    && rm -rf /var/lib/apt/lists/*
+
+# Miniconda
+RUN wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+        -O /tmp/miniconda.sh \
+    && bash /tmp/miniconda.sh -b -p /opt/conda \
+    && rm /tmp/miniconda.sh \
+    && /opt/conda/bin/conda init bash
+
+ENV PATH=/opt/conda/bin:$PATH
+
+COPY --from=solve /solve/out/default_linux-64_conda_spec.txt /tmp/tito_env.lock
+COPY --from=solve /solve/out/requirements.txt /tmp/tito_env.pip.txt
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main \
+    && conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r \
+    && conda create -y -p /opt/conda/envs/tito_env2 --file /tmp/tito_env.lock \
+    && /opt/conda/envs/tito_env2/bin/pip install --no-cache-dir -r /tmp/tito_env.pip.txt \
+    && . /opt/conda/etc/profile.d/conda.sh \
+    && conda activate tito_env2 \
+    && { conda remove -y --force \
+         pyside6 pyside6-essentials pyside6-addons \
+         qt6-main qt6-base qt-main pyqt pyqt5 pyqt6 \
+         opencv py-opencv libopencv libopencv-core \
+         openvino openvino-dev openvino-telemetry \
+         llvm-openmp-dev 2>/dev/null || true; } \
+    && conda clean -afy \
+    && { find /opt/conda -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true; } \
+    && { find /opt/conda/envs/tito_env2 -type d -name 'Qt*' -exec rm -rf {} + 2>/dev/null || true; } \
+    && { find /opt/conda/envs/tito_env2 -type d -name 'PySide6' -exec rm -rf {} + 2>/dev/null || true; } \
+    && rm -rf /opt/conda/pkgs \
+    && /opt/conda/envs/tito_env2/bin/python -c "import numpy, rasterio, shapely, zarr, yaml; from osgeo import gdal"
+
+SHELL ["/bin/bash", "-c"]
+
+WORKDIR /app
+COPY . /app/
+
+RUN mkdir -p /app/EF5_conf/basic /app/EF5_conf/parameters /app/EF5_conf/pet \
+             /app/EF5_conf/templates /app/EF5_conf/states \
+             /app/EF5_conf/precip /app/EF5_conf/precipEF5 /app/EF5_conf/qpf_store \
+             /app/outputs /app/outputs/logs \
+             /app/tito_utils/qpf_utils/StormLab-GFS-realtime/output \
+             /app/EF5_conf/precip/stormlab /app/EF5_conf/precip/stream_sat \
+             /app/EF5_conf/states/stream_sat \
+             /app/EF5_conf/states/scampr /app/EF5_conf/states/hsaf \
+             /app/outputs/stream_sat /app/outputs/scampr \
+             /app/outputs/stormlab
+
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["operational"]
