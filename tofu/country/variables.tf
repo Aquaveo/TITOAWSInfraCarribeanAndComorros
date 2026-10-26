@@ -98,7 +98,7 @@ variable "strict_checks" {
 
 variable "pps_yaml_override" {
   type        = bool
-  default     = true
+  default     = false
   description = "Blank AHWA's hardcoded PPS email in the task's copy until their fix lands."
 }
 

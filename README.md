@@ -118,13 +118,14 @@ The wrapper depends on this contract with the TITO repository:
 
 ## Open items with AHWA
 
-**PPS credentials (temporary workaround).** The STREAM-Sat YAML files still hardcode a PPS email that overrides the environment. Until AHWA's fix lands, `pps_yaml_override = true` makes the wrapper blank that one value in the task's own copy of the YAML, so STREAM-Sat uses `IMERG_PPS_EMAIL` from Secrets Manager. Nothing in AHWA's repository or image changes, and only an empty value is written. Once the YAML ships with an empty value, the step finds nothing to change and does nothing. Set `pps_yaml_override = false` then to remove it. With the workaround off, the strict precondition stops the task instead.
-
 **Conda solve (temporary workaround).** Conda's solve of the unpinned `tito_env.yml` hangs for over an hour since mid-October. Until AHWA's Dockerfile stops solving at build time, the deploy builds their code with `wrapper/tito-base.Dockerfile`: a copy of their Dockerfile where pixi solves the environment and conda installs that exact list. Nothing in AHWA's repository changes. The copy records which version of their Dockerfile it came from, and the deploy stops if theirs changes. Delete it once their fix lands.
 
-Also pending before enabling countries:
+Sizing, measured from Container Insights in October 2026 with 4 workers. Every country peaks at all 4 vCPU, so CPU sets the run time:
 
-- **HSAF FTP credentials for Comoros**, stored in `tito/hsaf-ftp`. Until they arrive, Comoros can be deployed but not scheduled.
-- **Benchmarks** for Haiti, Barbados, Antigua and Comoros. Their current sizes are starting points: Barbados has 8 vCPU / 32 GiB for its 50 StormLab members, the others follow Guatemala or AHWA's estimate. Right-size them from Container Insights after the first cycles. Guatemala was measured at about 15 minutes and 14.7 GiB peak on 4 vCPU with 4 workers.
+- **Guatemala:** about 38 minutes, 14.2 GiB peak on 4 vCPU / 20 GiB. The closest to the 50-minute `cycle_timeout_s`; if it grows, add CPU before memory.
+- **Comoros:** about 20 minutes, 8.7 GiB peak on 4 vCPU / 16 GiB.
+- **Haiti:** about 21 minutes, 3.1 GiB peak on 4 vCPU / 8 GiB.
+- **Antigua:** about 12 minutes, 2.6 GiB peak on 4 vCPU / 8 GiB.
+- **Barbados:** paused and unmeasured. It starts at 8 vCPU / 32 GiB for its 50 StormLab members.
 
 Settled with AHWA in September 2026: every country runs STREAM-Sat and StormLab, with SCaMPR gap-fill (HSAF for Comoros). State retention is 48 hours on every branch. The FIM stores ship on each branch, and `EF5_MAX_WORKERS` overrides the config.
