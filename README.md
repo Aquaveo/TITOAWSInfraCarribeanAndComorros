@@ -2,7 +2,7 @@
 
 Infrastructure for running [TITO](https://github.com/AHWALab/TITOCaribbeanAndComoros) (AHWA Lab, University of Iowa) as hourly scheduled tasks on Amazon ECS Fargate, one task per country. Written in OpenTofu and deployed from GitHub Actions.
 
-Nothing here changes TITO's own files. Each task runs AHWA's published release image with a thin wrapper around it.
+Nothing here changes TITO's own files. Each task runs an image built from AHWA's code at a pinned commit, with a thin wrapper on top.
 
 ## How a cycle runs
 
@@ -68,6 +68,7 @@ State lives in one S3 bucket, with the keys `tito/bootstrap.tfstate`, `tito/shar
 5. **Secrets.** Set the values outside OpenTofu:
    - `tito/nasa-pps-email`: a NASA PPS login registered for near-real-time data.
    - `tito/hsaf-ftp`: `{"user": "...", "password": "..."}`. Only needed for countries with `uses_hsaf = true`.
+6. **Viewer domain.** `site_domain` in `tofu/shared/shared.tfvars` (currently `tito.uffis.org`) gets its own Route 53 zone. After the first `Deploy shared`, add the `site_name_servers` output as NS records for that name in the parent zone (`uffis.org`, account 777460178571), then set `site_domain_delegated = true` and deploy again to add the certificate and alias.
 
 ## Deploying a country
 
@@ -81,23 +82,22 @@ Change them through a pull request, so the plan shows the exact image and data a
 2. **Publish static data** for the country. It checks out AHWA's repository at `tito_version` with Git LFS and publishes to `static/<country>/<data_version>/`. Versions are immutable; publishing the same label twice is refused.
 3. **Deploy country** for the country.
 
-   The workflow builds AHWA's image from the pinned commit with their own Dockerfile, then the wrapper on top, and runs the smoke test. It pushes the result to ECR as `<country>-<tito_version>-<wrapper rev>`, checks the static data exists, and applies `tofu/country`. The wrapper rev is the git tree hash of `wrapper/`, so a wrapper change always produces a new image. When ECR already has an image of the same `tito_version`, a wrapper change is built on top of it instead of rebuilding AHWA's image, which takes minutes rather than a full conda solve.
+   The workflow builds AHWA's image from the pinned commit, then the wrapper on top, and runs the smoke test. It pushes the result to ECR as `<country>-<tito_version>-<wrapper rev>`, checks the static data exists, and applies `tofu/country`. The wrapper rev is the git tree hash of `wrapper/`, so a wrapper change always produces a new image. When ECR already has an image of the same `tito_version`, a wrapper change is built on top of it instead of rebuilding AHWA's image. While the conda workaround is in place (see Open items), AHWA's code is built with our copy of their Dockerfile.
 4. Set `schedule_enabled = true` in the tfvars once the first manual run looks right, and deploy again.
 
 We build AHWA's image ourselves because their release workflow publishes images only for `v*` tags, and the branches have none.
 
 Deploy workflows run only from `main`. ECR keeps the newest 10 images per country.
 
-Tests run on every pull request: `python3 -m unittest discover -s wrapper/tests` and `bash wrapper/tests/test_tito_task.sh`.
+The `Validate` workflow runs on every pull request: `tofu fmt` and `validate`, shellcheck, the wrapper tests (`python3 -m unittest discover -s wrapper/tests`, `bash wrapper/tests/test_tito_task.sh`) and the site tests.
 
 ## Operating
 
 - **Rerun a cycle or run a hindcast:** start the country's task definition from the ECS console or CLI. For a hindcast, override the container command, for example `hindcast "2026-07-22 00:00" "2026-07-22 06:00"`; the wrapper adds `--regions`.
-- **Pause a country:** disable its schedule, `tito-<country>`. The next deploy re-enables it unless `schedule_enabled = false` is set in the tfvars.
+- **Pause a country:** disable its schedule, `tito-<country>`. The next deploy re-enables it unless `schedule_enabled = false` is set in the tfvars. Barbados is paused this way at Barbados's request.
 - **Logs:** CloudWatch log group `/tito/<country>`.
 - **Viewer:** https://tito.uffis.org/ shows a status card per country, the latest maps, and a file browser with each file's public URL. Tests: `node --test tests/*.test.js` and `node tests/smoke.mjs` in `site/`. To try the page locally, serve `site/` on localhost and open it with `?base=https://tito.uffis.org/outputs`.
 - **Public data:** base `https://tito.uffis.org/outputs`. `<country>/latest.json` names the newest cycle, `<country>/<cycle>/index.json` lists its files with sizes, and each file is at `<country>/<cycle>/<path>`. Countries: guatemala, haiti, barbados, antigua, comoros. Kept about one day, CORS enabled, no key.
-- **Viewer domain:** `site_domain` in `tofu/shared/shared.tfvars` (currently `tito.uffis.org`) gets its own Route 53 zone. After the first `Deploy shared`, add the `site_name_servers` output as NS records for that name in the parent zone (`uffis.org`, account 777460178571), then set `site_domain_delegated = true` and deploy again to add the certificate and alias.
 - **Alert emails** come from the `ALERT_EMAILS` repository secret, a JSON list, applied by `Deploy shared`. Each address must confirm the SNS subscription email.
 - **Alarms** go to the `tito-alerts` SNS topic: a failed cycle, a skipped cycle, no successful cycle in 2 hours, the scheduler failing to start a task, STREAM-Sat running without its saved state, and an archive upload failing.
 - **Restore an archived cycle:** Glacier Instant Retrieval objects download directly, with no restore request.
@@ -106,6 +106,16 @@ Tests run on every pull request: `python3 -m unittest discover -s wrapper/tests`
 aws s3 cp s3://<data bucket>/archive/guatemala/20261021.000000.tar . --profile <profile_name>
 tar xf 20261021.000000.tar
 ```
+
+## Sizing
+
+Measured from Container Insights in October 2026 with 4 workers. Every country peaks at all 4 vCPU, so CPU sets the run time:
+
+- **Guatemala:** about 38 minutes, 14.2 GiB peak on 4 vCPU / 20 GiB. The closest to the 50-minute `cycle_timeout_s`; if it grows, add CPU before memory.
+- **Comoros:** about 20 minutes, 8.7 GiB peak on 4 vCPU / 16 GiB.
+- **Haiti:** about 21 minutes, 3.1 GiB peak on 4 vCPU / 8 GiB.
+- **Antigua:** about 12 minutes, 2.6 GiB peak on 4 vCPU / 8 GiB.
+- **Barbados:** paused and unmeasured. It starts at 8 vCPU / 32 GiB for its 50 StormLab members.
 
 ## What TITO must keep stable
 
@@ -118,13 +128,6 @@ The wrapper depends on this contract with the TITO repository:
 
 ## Open items with AHWA
 
-**PPS credentials (temporary workaround).** The STREAM-Sat YAML files still hardcode a PPS email that overrides the environment. Until AHWA's fix lands, `pps_yaml_override = true` makes the wrapper blank that one value in the task's own copy of the YAML, so STREAM-Sat uses `IMERG_PPS_EMAIL` from Secrets Manager. Nothing in AHWA's repository or image changes, and only an empty value is written. Once the YAML ships with an empty value, the step finds nothing to change and does nothing. Set `pps_yaml_override = false` then to remove it. With the workaround off, the strict precondition stops the task instead.
-
 **Conda solve (temporary workaround).** Conda's solve of the unpinned `tito_env.yml` hangs for over an hour since mid-October. Until AHWA's Dockerfile stops solving at build time, the deploy builds their code with `wrapper/tito-base.Dockerfile`: a copy of their Dockerfile where pixi solves the environment and conda installs that exact list. Nothing in AHWA's repository changes. The copy records which version of their Dockerfile it came from, and the deploy stops if theirs changes. Delete it once their fix lands.
 
-Also pending before enabling countries:
-
-- **HSAF FTP credentials for Comoros**, stored in `tito/hsaf-ftp`. Until they arrive, Comoros can be deployed but not scheduled.
-- **Benchmarks** for Haiti, Barbados, Antigua and Comoros. Their current sizes are starting points: Barbados has 8 vCPU / 32 GiB for its 50 StormLab members, the others follow Guatemala or AHWA's estimate. Right-size them from Container Insights after the first cycles. Guatemala was measured at about 15 minutes and 14.7 GiB peak on 4 vCPU with 4 workers.
-
-Settled with AHWA in September 2026: every country runs STREAM-Sat and StormLab, with SCaMPR gap-fill (HSAF for Comoros). State retention is 48 hours on every branch. The FIM stores ship on each branch, and `EF5_MAX_WORKERS` overrides the config.
+Decisions settled with AHWA in September 2026: every country runs STREAM-Sat and StormLab, with SCaMPR gap-fill (HSAF for Comoros). State retention is 48 hours on every branch. The FIM stores ship on each branch, and `EF5_MAX_WORKERS` overrides the config.
