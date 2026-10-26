@@ -6,8 +6,6 @@
 import { COUNTRIES } from "./config.js";
 import { copyButton, element } from "./dom.js";
 
-const NOTEBOOK = "https://colab.research.google.com/github/Aquaveo/TITOAWSInfraCarribeanAndComorros/blob/main/notebooks/tito_outputs.ipynb";
-
 /**
  * The public URLs for a country's newest cycle.
  * @param {string} base outputs base URL, e.g. https://tito.uffis.org/outputs
@@ -58,9 +56,7 @@ export function accessElement(urls, country) {
     `Countries: ${COUNTRIES.map((c) => c.key).join(", ")}. Kept about one day. Public, CORS enabled, no key needed.`);
   const code = element("pre");
   code.append(element("code", "", accessSnippet(urls.base, country)));
-  const notebook = element("a", "", "Open the checking notebook in Colab");
-  notebook.href = NOTEBOOK;
-  box.append(rows, notes, code, notebook);
+  box.append(rows, notes, code);
   return box;
 }
 
