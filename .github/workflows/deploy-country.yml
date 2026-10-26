@@ -89,7 +89,16 @@ jobs:
             docker pull "$IMAGE:$BASE_TAG"
             base="$IMAGE:$BASE_TAG"
           else
-            docker build -t "tito-base:$TITO_VERSION" tito
+            ours=wrapper/tito-base.Dockerfile
+            if [ -f "$ours" ]; then
+              want=$(sed -n 's/^# upstream-blob: //p' "$ours")
+              have=$(git -C tito rev-parse HEAD:Dockerfile)
+              [ "$have" = "$want" ] || { echo "AHWA's Dockerfile changed ($have, our copy is from $want); update or delete $ours" >&2; exit 1; }
+              echo "building AHWA's code with $ours"
+              docker build -f "$ours" -t "tito-base:$TITO_VERSION" tito
+            else
+              docker build -t "tito-base:$TITO_VERSION" tito
+            fi
             base="tito-base:$TITO_VERSION"
           fi
           docker build --build-arg BASE_IMAGE="$base" -t "$IMAGE:$TAG" wrapper
